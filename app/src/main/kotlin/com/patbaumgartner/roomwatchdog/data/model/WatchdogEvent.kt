@@ -21,13 +21,7 @@ data class WatchdogEvent(
     val distanceCm: Int? = null,
     val moving: Boolean? = null,
     val soundLevel: Int? = null,
-) {
-    val isPresence: Boolean
-        get() = type == WatchdogEventType.PresenceDetected || type == WatchdogEventType.Movement
-
-    val distanceMetres: Float?
-        get() = distanceCm?.takeIf { it > 0 }?.let { it / 100f }
-}
+)
 
 data class RoomSignals(
     val presence: Boolean? = null,

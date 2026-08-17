@@ -420,7 +420,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteRecording(id: String): Boolean = app.container.recordings.delete(id)
 
-    fun clearError() = _state.update { it.copy(error = null) }
     fun openRecordings() = _state.update { it.copy(screen = AppScreen.Recordings) }
 
     fun openSettings() = _state.update { state ->

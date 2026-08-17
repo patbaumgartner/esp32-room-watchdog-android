@@ -1,6 +1,5 @@
 package com.patbaumgartner.roomwatchdog.audio
 
-import kotlin.math.log10
 import kotlin.math.max
 
 /**
@@ -54,16 +53,6 @@ class EchoCanceller(sampleRate: Int) {
     private var newest = 0
     private var partitionsFilled = 0
     private var residualGain = 1.0
-    private var capturedEnergy = 0.0
-    private var residualEnergy = 0.0
-
-    /** Echo return loss enhancement in dB: how much of the microphone signal the filter removes. */
-    val erleDb: Double
-        get() = if (capturedEnergy <= 0.0 || residualEnergy <= 0.0) {
-            0.0
-        } else {
-            10.0 * log10(capturedEnergy / residualEnergy)
-        }
 
     fun reset() {
         for (partition in 0 until PARTITIONS) {
@@ -85,8 +74,6 @@ class EchoCanceller(sampleRate: Int) {
         newest = 0
         partitionsFilled = 0
         residualGain = 1.0
-        capturedEnergy = 0.0
-        residualEnergy = 0.0
     }
 
     /**
@@ -195,18 +182,14 @@ class EchoCanceller(sampleRate: Int) {
         fft.inverse(workRe, workIm)
 
         var echoEnergy = 0.0
-        var captured = 0.0
         var residual = 0.0
         for (i in 0 until BLOCK) {
             val predicted = workRe[BLOCK + i]
             val error = captureBlock[i] - predicted
             echoEnergy += predicted * predicted
-            captured += captureBlock[i] * captureBlock[i]
             residual += error * error
             captureBlock[i] = error
         }
-        capturedEnergy = ENERGY_SMOOTHING * capturedEnergy + (1.0 - ENERGY_SMOOTHING) * captured
-        residualEnergy = ENERGY_SMOOTHING * residualEnergy + (1.0 - ENERGY_SMOOTHING) * residual
 
         adapt()
         suppressResidual(echoEnergy, residual)
@@ -279,7 +262,6 @@ class EchoCanceller(sampleRate: Int) {
         const val CANCELLED_CAPACITY = BLOCK * 4
         const val STEP_SIZE = 0.4
         const val REGULARISATION = 1e-6
-        const val ENERGY_SMOOTHING = 0.95
 
         /** Assumed share of the echo the linear filter cannot reach. */
         const val RESIDUAL_LEAK = 0.25

@@ -62,10 +62,6 @@ class AlertNotifier(private val context: Context) {
             .setContentIntent(openApp(AutoStart.NONE))
             .build()
 
-    fun updateForeground(state: String, detail: String? = null) {
-        manager.notify(ID_FOREGROUND, foregroundNotification(state, detail))
-    }
-
     fun notifyEvent(event: WatchdogEvent, roomName: String) {
         if (AppVisibility.isForeground) {
             cancelEventAlerts()
@@ -105,8 +101,6 @@ class AlertNotifier(private val context: Context) {
 
         manager.notify(id, builder.build())
     }
-
-    fun cancelPresence() = manager.cancel(ID_PRESENCE)
 
     /** Accepts auto-start actions only when they came from one of this app's immutable PendingIntents. */
     fun autoStartFrom(intent: Intent?): String? {

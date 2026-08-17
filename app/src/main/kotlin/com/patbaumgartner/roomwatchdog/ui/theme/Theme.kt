@@ -20,13 +20,12 @@ data class WatchdogAccents(
     val presence: Color,
     val warning: Color,
     val recording: Color,
-    val hairline: Color,
     val textMuted: Color,
     val brand: Color,
 )
 
 val LocalWatchdogAccents = staticCompositionLocalOf {
-    WatchdogAccents(Coral, Amber, RecordRed, HairlineLight, InkMuted, BrandCyanDeep)
+    WatchdogAccents(Coral, Amber, RecordRed, InkMuted, BrandCyanDeep)
 }
 
 private val LightScheme = lightColorScheme(
@@ -112,9 +111,9 @@ fun RoomWatchdogTheme(
     content: @Composable () -> Unit,
 ) {
     val accents = if (darkTheme) {
-        WatchdogAccents(BrandCyanLight, AmberLight, RecordRedLight, HairlineDark, BoneMuted, BrandCyanLight)
+        WatchdogAccents(BrandCyanLight, AmberLight, RecordRedLight, BoneMuted, BrandCyanLight)
     } else {
-        WatchdogAccents(BrandCyanDeep, Amber, RecordRed, HairlineLight, InkMuted, BrandCyanDeep)
+        WatchdogAccents(BrandCyanDeep, Amber, RecordRed, InkMuted, BrandCyanDeep)
     }
     CompositionLocalProvider(LocalWatchdogAccents provides accents) {
         MaterialTheme(

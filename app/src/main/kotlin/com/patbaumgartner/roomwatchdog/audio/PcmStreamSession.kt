@@ -39,7 +39,6 @@ data class StreamStatus(
     val listeningSinceMillis: Long? = null,
     val recordingSinceMillis: Long? = null,
     val error: StreamError? = null,
-    val savedRecordingId: String? = null,
 )
 
 /**
@@ -131,18 +130,9 @@ class PcmStreamSession(
         }
     }
 
-    fun consumeSavedRecording() {
-        _status.update { it.copy(savedRecordingId = null) }
-    }
-
-    fun clearError() {
-        if (_status.value.phase == StreamPhase.Idle) _status.value = StreamStatus(noiseFiltered = noiseFilterEnabled)
-    }
-
     private suspend fun stream(baseUrl: String, apiToken: String, audioPort: Int) {
         var track: AudioTrack? = null
         var error: StreamError? = null
-        var savedId: String? = null
         var recordingStartedAt = 0L
 
         try {
@@ -205,12 +195,11 @@ class PcmStreamSession(
                         if (recordingRequested) {
                             recorder.feed(buffer, read)
                         } else {
-                            savedId = finishRecording(recordingStartedAt)
+                            finishRecording(recordingStartedAt)
                             _status.update {
                                 it.copy(
                                     recording = false,
                                     recordingSinceMillis = null,
-                                    savedRecordingId = savedId,
                                 )
                             }
                         }
@@ -229,7 +218,7 @@ class PcmStreamSession(
             }
         } finally {
             if (recorder.isRecording) {
-                savedId = finishRecording(recordingStartedAt) ?: savedId
+                finishRecording(recordingStartedAt)
             }
             track?.runCatching { stop() }
             track?.runCatching { release() }
@@ -241,19 +230,18 @@ class PcmStreamSession(
             _status.value = StreamStatus(
                 noiseFiltered = noiseFilterEnabled,
                 error = error,
-                savedRecordingId = savedId,
             )
         }
     }
 
-    private fun finishRecording(startedAt: Long): String? {
-        val result = recorder.stop() ?: return null
-        return recordingStore.add(
+    private fun finishRecording(startedAt: Long) {
+        val result = recorder.stop() ?: return
+        recordingStore.add(
             file = result.file,
             durationMs = result.durationMs,
             sizeBytes = result.sizeBytes,
             startedAtMillis = if (startedAt > 0) startedAt else System.currentTimeMillis(),
-        ).id
+        )
     }
 
     private fun buildTrack(): AudioTrack {

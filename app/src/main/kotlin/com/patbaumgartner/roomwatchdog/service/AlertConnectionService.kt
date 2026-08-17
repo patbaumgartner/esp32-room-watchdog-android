@@ -26,8 +26,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 enum class ConnectionState { Connecting, Connected, Reconnecting, Unauthorised }
@@ -200,8 +198,8 @@ class AlertConnectionService : Service() {
         private const val JITTER_MS = 2_000L
         private const val HANDSHAKE_TIMEOUT_MS = 20_000L
 
-        val state = MutableStateFlow(ConnectionState.Connecting)
-        val connectionState: StateFlow<ConnectionState> = state.asStateFlow()
+        /** The connection state drives the ongoing notification; nothing outside the service sets it. */
+        private val state = MutableStateFlow(ConnectionState.Connecting)
 
         fun start(context: Context) {
             val intent = Intent(context, AlertConnectionService::class.java)
