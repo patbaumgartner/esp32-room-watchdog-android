@@ -43,6 +43,7 @@ class AlertConnectionService : Service() {
 
     private var stream: GotifyStream? = null
     private var reconnectJob: Job? = null
+    private var handshakeJob: Job? = null
     private var attempt = 0
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
@@ -68,6 +69,12 @@ class AlertConnectionService : Service() {
         super.onDestroy()
     }
 
+    /**
+     * Reachable from the system callback thread, the reconnect coroutine and `onStartCommand` at
+     * once. Without serialising, two callers each replace [stream] and the loser's socket stays
+     * open, delivering every alert twice.
+     */
+    @Synchronized
     private fun connect() {
         val config = app.container.settings.current
         if (!config.isConfigured) {
@@ -98,8 +105,19 @@ class AlertConnectionService : Service() {
                 }
             },
         ).also { it.connect() }
+
+        // The streaming client has no read or call timeout, so a server that accepts the socket
+        // and never completes the handshake would leave alerts silently dead. Retry instead.
+        handshakeJob?.cancel()
+        handshakeJob = scope.launch {
+            delay(HANDSHAKE_TIMEOUT_MS)
+            if (state.value != ConnectionState.Connected && state.value != ConnectionState.Unauthorised) {
+                scheduleReconnect()
+            }
+        }
     }
 
+    @Synchronized
     private fun scheduleReconnect() {
         if (reconnectJob?.isActive == true) return
         state.value = ConnectionState.Reconnecting
@@ -161,7 +179,7 @@ class AlertConnectionService : Service() {
             }
         }
         runCatching { manager.registerDefaultNetworkCallback(callback) }
-        networkCallback = callback
+            .onSuccess { networkCallback = callback }
     }
 
     private fun unregisterNetworkCallback() {
@@ -180,6 +198,7 @@ class AlertConnectionService : Service() {
         private const val MIN_BACKOFF_MS = 5_000L
         private const val MAX_BACKOFF_MS = 20 * 60 * 1000L
         private const val JITTER_MS = 2_000L
+        private const val HANDSHAKE_TIMEOUT_MS = 20_000L
 
         val state = MutableStateFlow(ConnectionState.Connecting)
         val connectionState: StateFlow<ConnectionState> = state.asStateFlow()

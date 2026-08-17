@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 sealed interface AppScreen {
     data object Home : AppScreen
@@ -188,10 +189,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     )
                     telemetry = socket
                     socket.connect()
-                    backoffMs = if (connected.await()) TELEMETRY_MIN_BACKOFF_MS else minOf(
-                        backoffMs * 2,
-                        TELEMETRY_MAX_BACKOFF_MS
-                    )
+
+                    // The streaming client deliberately has no read or call timeout, so a server
+                    // that accepts the connection and then says nothing would hang this loop.
+                    val opened = withTimeoutOrNull(TELEMETRY_HANDSHAKE_MS) { connected.await() }
+                    if (opened != true) closeTelemetry()
+                    backoffMs = if (opened == true) {
+                        TELEMETRY_MIN_BACKOFF_MS
+                    } else {
+                        minOf(backoffMs * 2, TELEMETRY_MAX_BACKOFF_MS)
+                    }
                 }
                 delay(backoffMs)
             }
@@ -472,5 +479,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         const val TELEMETRY_MIN_BACKOFF_MS = 2_000L
         const val TELEMETRY_MAX_BACKOFF_MS = 30_000L
         const val TELEMETRY_IDLE_CHECK_MS = 1_000L
+        const val TELEMETRY_HANDSHAKE_MS = 15_000L
     }
 }
