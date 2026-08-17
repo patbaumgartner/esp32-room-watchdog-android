@@ -55,6 +55,7 @@ class SettingsRepository(context: Context) {
         lastMessageId = prefs.getLong(KEY_LAST_MESSAGE, 0),
     )
 
+    @Synchronized
     fun save(config: WatchdogConfig) {
         prefs.edit {
             putString(KEY_ROOM, config.roomName)
@@ -68,12 +69,14 @@ class SettingsRepository(context: Context) {
         _config.value = read()
     }
 
+    @Synchronized
     fun rememberMessageId(id: Long) {
         if (id <= _config.value.lastMessageId) return
         prefs.edit { putLong(KEY_LAST_MESSAGE, id) }
         _config.value = _config.value.copy(lastMessageId = id)
     }
 
+    @Synchronized
     fun clear() {
         prefs.edit { clear() }
         secrets.clear()

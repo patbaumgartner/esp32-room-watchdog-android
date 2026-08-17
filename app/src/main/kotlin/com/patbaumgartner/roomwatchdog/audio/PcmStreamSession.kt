@@ -21,6 +21,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okhttp3.Call
 import okhttp3.OkHttpClient
@@ -115,21 +116,23 @@ class PcmStreamSession(
         if (_status.value.phase != StreamPhase.Live) return
         val muted = !_status.value.muted
         activeTrack?.setVolume(if (muted) 0f else 1f)
-        _status.value = _status.value.copy(muted = muted)
+        _status.update { it.copy(muted = muted) }
     }
 
     /** Playback, metering and any running recording all follow this switch. */
     fun toggleNoiseFilter() {
         noiseFilterEnabled = !noiseFilterEnabled
         if (noiseFilterEnabled) noiseFilter.reset()
-        _status.value = _status.value.copy(
-            noiseFiltered = noiseFilterEnabled,
-            noiseLearning = noiseFilterEnabled && _status.value.phase == StreamPhase.Live,
-        )
+        _status.update {
+            it.copy(
+                noiseFiltered = noiseFilterEnabled,
+                noiseLearning = noiseFilterEnabled && it.phase == StreamPhase.Live,
+            )
+        }
     }
 
     fun consumeSavedRecording() {
-        _status.value = _status.value.copy(savedRecordingId = null)
+        _status.update { it.copy(savedRecordingId = null) }
     }
 
     fun clearError() {
@@ -160,11 +163,13 @@ class PcmStreamSession(
                 noiseFilter.reset()
                 echoCanceller.reset()
                 requestFocus()
-                _status.value = _status.value.copy(
-                    phase = StreamPhase.Live,
-                    noiseLearning = noiseFilterEnabled,
-                    listeningSinceMillis = System.currentTimeMillis(),
-                )
+                _status.update {
+                    it.copy(
+                        phase = StreamPhase.Live,
+                        noiseLearning = noiseFilterEnabled,
+                        listeningSinceMillis = System.currentTimeMillis(),
+                    )
+                }
 
                 val buffer = ByteArray(BUFFER_BYTES)
                 while (true) {
@@ -183,27 +188,31 @@ class PcmStreamSession(
 
                     val learning = noiseFilterEnabled && noiseFilter.isLearning
                     if (learning != _status.value.noiseLearning) {
-                        _status.value = _status.value.copy(noiseLearning = learning)
+                        _status.update { it.copy(noiseLearning = learning) }
                     }
 
                     if (recordingRequested && !recorder.isRecording) {
                         recorder.start()
                         recordingStartedAt = System.currentTimeMillis()
-                        _status.value = _status.value.copy(
-                            recording = true,
-                            recordingSinceMillis = recordingStartedAt,
-                        )
+                        _status.update {
+                            it.copy(
+                                recording = true,
+                                recordingSinceMillis = recordingStartedAt,
+                            )
+                        }
                     }
                     if (recorder.isRecording) {
                         if (recordingRequested) {
                             recorder.feed(buffer, read)
                         } else {
                             savedId = finishRecording(recordingStartedAt)
-                            _status.value = _status.value.copy(
-                                recording = false,
-                                recordingSinceMillis = null,
-                                savedRecordingId = savedId,
-                            )
+                            _status.update {
+                                it.copy(
+                                    recording = false,
+                                    recordingSinceMillis = null,
+                                    savedRecordingId = savedId,
+                                )
+                            }
                         }
                     }
                 }
