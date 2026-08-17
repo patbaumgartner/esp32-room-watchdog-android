@@ -3,6 +3,7 @@ package com.patbaumgartner.roomwatchdog.data.gotify
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -33,10 +34,10 @@ class GotifyClientValidationTest {
     }
 
     @Test
-    fun `stream URL keeps the HTTPS scheme OkHttp requires`() {
-        assertEquals(
-            "https://gotify.example.com/stream?token=gtfyc.client-token",
-            gotifyStreamUrl("https://gotify.example.com", "gtfyc.client-token").toString(),
-        )
+    fun `stream URL keeps the HTTPS scheme and carries no credentials`() {
+        val url = gotifyStreamUrl("https://gotify.example.com")
+
+        assertEquals("https://gotify.example.com/stream", url.toString())
+        assertNull("the token belongs in a header, not a logged URL", url.queryParameter("token"))
     }
 }

@@ -9,10 +9,9 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 
-internal fun gotifyStreamUrl(baseUrl: String, clientToken: String): HttpUrl =
+internal fun gotifyStreamUrl(baseUrl: String): HttpUrl =
     gotifyBaseUrl(baseUrl).newBuilder()
         .addPathSegment("stream")
-        .addQueryParameter("token", clientToken)
         .build()
 
 /**
@@ -36,13 +35,15 @@ class GotifyStream(
     fun connect() {
         if (active) return
         active = true
-        val url = runCatching { gotifyStreamUrl(baseUrl, clientToken) }.getOrElse {
+        val url = runCatching { gotifyStreamUrl(baseUrl) }.getOrElse {
             active = false
             onClosed(false)
             return
         }
+        // Header rather than ?token=, which every proxy in the path would write to its access log.
         val request = Request.Builder()
             .url(url)
+            .header("X-Gotify-Key", clientToken)
             .build()
         socket = http.newWebSocket(request, Listener())
     }
