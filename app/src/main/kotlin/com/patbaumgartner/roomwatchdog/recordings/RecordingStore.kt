@@ -32,6 +32,10 @@ class RecordingStore(context: Context) {
     private val _recordings = MutableStateFlow(read())
     val recordings: StateFlow<List<Recording>> = _recordings.asStateFlow()
 
+    init {
+        pruneOrphans()
+    }
+
     fun fileOf(recording: Recording) = File(directory, recording.fileName)
 
     fun add(file: File, durationMs: Long, sizeBytes: Long, startedAtMillis: Long): Recording {
@@ -63,6 +67,18 @@ class RecordingStore(context: Context) {
 
     private fun defaultName(startedAtMillis: Long): String =
         SimpleDateFormat("d MMM, HH:mm", Locale.getDefault()).format(Date(startedAtMillis))
+
+    /**
+     * A process killed mid-recording leaves a partial `.tmp` behind, and one killed between the
+     * rename and the metadata write leaves an `.m4a` nobody can see. Both are minutes of audio per
+     * file, so they are dropped once, at startup, before a new session can create any.
+     */
+    private fun pruneOrphans() {
+        val known = _recordings.value.mapTo(mutableSetOf()) { it.fileName }
+        directory.listFiles()?.forEach { file ->
+            if (file.isFile && file.name !in known) file.delete()
+        }
+    }
 
     private fun read(): List<Recording> {
         val stored = prefs.getString(KEY, null) ?: return emptyList()
