@@ -122,6 +122,11 @@ class MainActivity : ComponentActivity() {
             RoomWatchdogTheme {
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 NotificationPermissionEffect(state.config.isConfigured)
+                LocalNetworkPermissionEffect(
+                    configured = state.config.isConfigured,
+                    onGranted = viewModel::refreshStatus,
+                    onDenied = viewModel::localNetworkPermissionDenied,
+                )
                 RoomWatchdogApp(state, viewModel)
             }
         }
@@ -162,6 +167,28 @@ private fun NotificationPermissionEffect(configured: Boolean) {
 }
 
 @Composable
+private fun LocalNetworkPermissionEffect(
+    configured: Boolean,
+    onGranted: () -> Unit,
+    onDenied: () -> Unit,
+) {
+    if (Build.VERSION.SDK_INT < 37 || !configured) return
+    val context = LocalContext.current
+    val currentOnGranted by rememberUpdatedState(onGranted)
+    val currentOnDenied by rememberUpdatedState(onDenied)
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) currentOnGranted() else currentOnDenied()
+    }
+    LaunchedEffect(configured) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_LOCAL_NETWORK) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            launcher.launch(Manifest.permission.ACCESS_LOCAL_NETWORK)
+        }
+    }
+}
+
+@Composable
 private fun RoomWatchdogApp(state: HomeState, viewModel: AppViewModel) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Crossfade(targetState = state.screen, label = "screen") { screen ->
@@ -176,6 +203,12 @@ private fun RoomWatchdogApp(state: HomeState, viewModel: AppViewModel) {
 
 @Composable
 private fun SetupForm(setup: SetupState, viewModel: AppViewModel) {
+    val context = LocalContext.current
+    val localNetworkPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) viewModel.saveSetup() else viewModel.localNetworkPermissionDenied()
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -205,7 +238,16 @@ private fun SetupForm(setup: SetupState, viewModel: AppViewModel) {
         }
         Spacer(Modifier.height(32.dp))
         Button(
-            onClick = viewModel::saveSetup,
+            onClick = {
+                if (Build.VERSION.SDK_INT >= 37 &&
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_LOCAL_NETWORK) !=
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                    localNetworkPermission.launch(Manifest.permission.ACCESS_LOCAL_NETWORK)
+                } else {
+                    viewModel.saveSetup()
+                }
+            },
             enabled = !setup.busy,
             modifier = Modifier.fillMaxWidth().height(54.dp),
             shape = RoundedCornerShape(16.dp)

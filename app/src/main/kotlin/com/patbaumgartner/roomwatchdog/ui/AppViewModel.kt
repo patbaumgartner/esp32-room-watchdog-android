@@ -236,6 +236,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun localNetworkPermissionDenied() {
+        updateSetup { copy(error = app.getString(R.string.error_local_network_permission)) }
+        _state.update { it.copy(screen = AppScreen.Settings) }
+    }
+
     /** Re-baselines the radar. The room has to be empty for the reading to mean anything. */
     fun calibrate() {
         val config = settings.current

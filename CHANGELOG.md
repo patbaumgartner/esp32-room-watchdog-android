@@ -30,3 +30,4 @@ No public release has been published yet.
 - Unknown Gotify messages no longer become presence alerts
 - Recorder shutdown is bounded and cleans incomplete output
 - Presence and sound event notifications are suppressed while the app is visible
+- Android 17 now requests local-network access before connecting to the ESP32

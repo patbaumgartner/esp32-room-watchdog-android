@@ -88,6 +88,7 @@
     <string name="error_device_auth">The device API key was rejected.</string>
     <string name="error_device_url">Enter a valid http:// or https:// device address.</string>
     <string name="error_device_insecure">Plain HTTP is allowed only for local or private-network devices.</string>
+    <string name="error_local_network_permission">Allow Nearby devices access so Room Watchdog can connect to the ESP32 on your local network.</string>
     <string name="error_stream_auth">Check the device API key</string>
     <string name="error_stream_busy">Another listener is connected</string>
     <string name="error_stream_unreachable">Connect to home Wi‑Fi or VPN</string>
