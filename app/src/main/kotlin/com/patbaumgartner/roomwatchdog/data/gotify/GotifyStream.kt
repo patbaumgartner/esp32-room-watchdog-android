@@ -2,11 +2,18 @@ package com.patbaumgartner.roomwatchdog.data.gotify
 
 import com.patbaumgartner.roomwatchdog.data.network.gotifyBaseUrl
 import kotlinx.serialization.json.Json
+import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+
+internal fun gotifyStreamUrl(baseUrl: String, clientToken: String): HttpUrl =
+    gotifyBaseUrl(baseUrl).newBuilder()
+        .addPathSegment("stream")
+        .addQueryParameter("token", clientToken)
+        .build()
 
 /**
  * Single Gotify `/stream` websocket. Reconnection is driven by the caller so the
@@ -29,15 +36,9 @@ class GotifyStream(
     fun connect() {
         if (active) return
         active = true
-        val url = runCatching {
-            gotifyBaseUrl(baseUrl).newBuilder()
-                .scheme("wss")
-                .addPathSegment("stream")
-                .addQueryParameter("token", clientToken)
-                .build()
-        }.getOrElse {
+        val url = runCatching { gotifyStreamUrl(baseUrl, clientToken) }.getOrElse {
             active = false
-            onClosed(true)
+            onClosed(false)
             return
         }
         val request = Request.Builder()

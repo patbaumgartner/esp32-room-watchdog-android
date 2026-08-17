@@ -31,4 +31,12 @@ class GotifyClientValidationTest {
             (result.exceptionOrNull() as GotifyException).kind,
         )
     }
+
+    @Test
+    fun `stream URL keeps the HTTPS scheme OkHttp requires`() {
+        assertEquals(
+            "https://gotify.example.com/stream?token=gtfyc.client-token",
+            gotifyStreamUrl("https://gotify.example.com", "gtfyc.client-token").toString(),
+        )
+    }
 }
