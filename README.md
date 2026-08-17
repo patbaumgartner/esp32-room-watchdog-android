@@ -13,8 +13,11 @@ The companion firmware lives in
 
 ## Features
 
-- Live room presence, distance, microphone level, and device connectivity
+- Live room presence, distance, microphone level, and device connectivity,
+  pushed over the device's WebSocket instead of polled
 - On-demand PCM audio listening with independent mute
+- Noise reduction that learns the room during the first seconds of a session,
+  plus echo cancellation so phone and sensor can share a desk
 - Local AAC/M4A recording with playback, sharing, renaming, and deletion
 - Background notifications for presence and sound events, suppressed while the
   app is visible
@@ -36,9 +39,14 @@ can use several gigabytes of disk space in Gradle and Android SDK caches.
 
 ## Build and run
 
+Gradle needs to know where the Android SDK is, from either an `ANDROID_HOME`
+environment variable or an `sdk.dir` line in `local.properties`. Without one of
+them the build stops with `SDK location not found`.
+
 ```bash
 git clone https://github.com/patbaumgartner/esp32-room-watchdog-android.git
 cd esp32-room-watchdog-android
+export ANDROID_HOME="$HOME/Android/Sdk"
 ./gradlew :app:assembleDebug
 ```
 

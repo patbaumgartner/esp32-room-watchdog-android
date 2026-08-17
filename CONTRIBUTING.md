@@ -7,11 +7,13 @@ tests are easiest to review.
 
 Install JDK 17 and Android SDK 37, then clone the repository. Android Studio can
 import the root directory directly; command-line builds use the checked-in
-Gradle wrapper.
+Gradle wrapper and need `ANDROID_HOME` set, or an `sdk.dir` line in
+`local.properties`.
 
 ```bash
 git clone https://github.com/patbaumgartner/esp32-room-watchdog-android.git
 cd esp32-room-watchdog-android
+export ANDROID_HOME="$HOME/Android/Sdk"
 ./gradlew :app:assembleDebug
 ```
 

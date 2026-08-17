@@ -37,7 +37,7 @@ jobs:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Validate shell scripts
-        run: bash -n scripts/*.sh
+        run: shellcheck scripts/*.sh
 
       - name: Test, lint, and package
         run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug assembleRelease
