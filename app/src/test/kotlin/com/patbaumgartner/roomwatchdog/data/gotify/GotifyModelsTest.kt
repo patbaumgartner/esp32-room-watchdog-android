@@ -34,6 +34,18 @@ class GotifyModelsTest {
     }
 
     @Test
+    fun `an overlong message is clipped before it reaches storage`() {
+        val event = GotifyMessage(
+            title = "t".repeat(5_000),
+            message = "Sound detected (level 12) " + "m".repeat(100_000),
+        ).toWatchdogEvent()
+
+        assertEquals(200, event.title.length)
+        assertEquals(1_000, event.message.length)
+        assertEquals("parsing still sees the meaningful prefix", WatchdogEventType.SoundDetected, event.type)
+    }
+
+    @Test
     fun `presence sensor proximity wording becomes a presence alert`() {
         assertEquals(
             WatchdogEventType.PresenceDetected,

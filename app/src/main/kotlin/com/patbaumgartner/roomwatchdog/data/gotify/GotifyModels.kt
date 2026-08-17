@@ -65,8 +65,8 @@ fun GotifyMessage.toWatchdogEvent(receivedAtMillis: Long = System.currentTimeMil
     return WatchdogEvent(
         messageId = id,
         appId = appid,
-        title = title,
-        message = message,
+        title = title.clip(MAX_TITLE),
+        message = message.clip(MAX_MESSAGE),
         priority = priority,
         receivedAtMillis = receivedAtMillis,
         type = type,
@@ -75,3 +75,13 @@ fun GotifyMessage.toWatchdogEvent(receivedAtMillis: Long = System.currentTimeMil
         soundLevel = soundLevel,
     )
 }
+
+/**
+ * The store keeps the last fifty events in preferences, which Android loads into memory on the main
+ * thread at startup. A server sending very long messages must not be able to make that a problem;
+ * no notification shows this much text anyway.
+ */
+private fun String.clip(limit: Int) = if (length <= limit) this else take(limit)
+
+private const val MAX_TITLE = 200
+private const val MAX_MESSAGE = 1_000
