@@ -3,6 +3,8 @@ package com.patbaumgartner.roomwatchdog.di
 import android.content.Context
 import com.patbaumgartner.roomwatchdog.audio.PcmStreamSession
 import com.patbaumgartner.roomwatchdog.data.device.DeviceClient
+import com.patbaumgartner.roomwatchdog.data.device.TelemetryFrame
+import com.patbaumgartner.roomwatchdog.data.device.TelemetryStream
 import com.patbaumgartner.roomwatchdog.data.events.EventStore
 import com.patbaumgartner.roomwatchdog.data.gotify.GotifyClient
 import com.patbaumgartner.roomwatchdog.data.gotify.GotifyMessage
@@ -50,6 +52,22 @@ class AppContainer(context: Context) {
         clientToken = clientToken,
         onOpen = onOpen,
         onMessage = onMessage,
+        onClosed = onClosed,
+    )
+
+    fun telemetryStream(
+        baseUrl: String,
+        apiToken: String,
+        onOpen: () -> Unit,
+        onFrame: (TelemetryFrame) -> Unit,
+        onClosed: (Boolean) -> Unit,
+    ) = TelemetryStream(
+        http = streamingHttpClient,
+        deviceClient = deviceClient,
+        baseUrl = baseUrl,
+        apiToken = apiToken,
+        onOpen = onOpen,
+        onFrame = onFrame,
         onClosed = onClosed,
     )
 }

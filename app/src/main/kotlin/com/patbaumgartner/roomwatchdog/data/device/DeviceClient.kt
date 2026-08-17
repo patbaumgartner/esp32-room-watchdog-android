@@ -3,7 +3,9 @@ package com.patbaumgartner.roomwatchdog.data.device
 import java.io.IOException
 import com.patbaumgartner.roomwatchdog.data.network.EndpointIssue
 import com.patbaumgartner.roomwatchdog.data.network.EndpointValidationException
+import com.patbaumgartner.roomwatchdog.data.network.deviceAudioUrl
 import com.patbaumgartner.roomwatchdog.data.network.deviceBaseUrl
+import com.patbaumgartner.roomwatchdog.data.network.deviceSocketUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -21,8 +23,13 @@ data class DeviceStatus(
     val stationaryDistanceCm: Int = 0,
     val stationaryEnergy: Int = 0,
     val micPeakToPeak: Int = 0,
+    val micMin: Int = 0,
+    val micMax: Int = 0,
     val audioStreaming: Boolean = false,
     val audioDroppedSamples: Long = 0,
+    val telemetryClient: Boolean = false,
+    val pushBackingOff: Boolean = false,
+    val pushLost: Long = 0,
     val uptimeMs: Long = 0,
 ) {
     val moving: Boolean get() = targetState and 0x1 != 0
@@ -62,6 +69,7 @@ class DeviceClient(private val http: OkHttpClient) {
                     else DeviceException.Kind.InvalidUrl,
                     error,
                 )
+
                 is IOException -> DeviceException(DeviceException.Kind.Unreachable, error)
                 else -> DeviceException(DeviceException.Kind.Unknown, error)
             }
@@ -90,19 +98,30 @@ class DeviceClient(private val http: OkHttpClient) {
                     else DeviceException.Kind.InvalidUrl,
                     error,
                 )
+
                 is IOException -> DeviceException(DeviceException.Kind.Unreachable, error)
                 else -> DeviceException(DeviceException.Kind.Unknown, error)
             }
         }
     }
 
-    fun audioRequest(baseUrl: String, apiToken: String): Request = Request.Builder()
-        .url(deviceBaseUrl(baseUrl).newBuilder().addPathSegment("audio.pcm").build())
+    fun audioRequest(baseUrl: String, apiToken: String, audioPort: Int? = DEFAULT_AUDIO_PORT): Request =
+        Request.Builder()
+            .url(deviceAudioUrl(baseUrl, audioPort))
+            .header("Authorization", "Bearer $apiToken")
+            .get()
+            .build()
+
+    /** Handshake for the live telemetry socket; okhttp upgrades the http(s) URL itself. */
+    fun telemetryRequest(baseUrl: String, apiToken: String): Request = Request.Builder()
+        .url(deviceSocketUrl(baseUrl))
         .header("Authorization", "Bearer $apiToken")
-        .get()
         .build()
 
     companion object {
         const val SAMPLE_RATE = 48_000
+
+        /** The firmware's audio server; the socket's hello frame announces the live value. */
+        const val DEFAULT_AUDIO_PORT = 81
     }
 }

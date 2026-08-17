@@ -33,6 +33,8 @@ data class StreamStatus(
     val phase: StreamPhase = StreamPhase.Idle,
     val recording: Boolean = false,
     val muted: Boolean = false,
+    val noiseFiltered: Boolean = true,
+    val noiseLearning: Boolean = false,
     val listeningSinceMillis: Long? = null,
     val recordingSinceMillis: Long? = null,
     val error: StreamError? = null,
@@ -62,24 +64,35 @@ class PcmStreamSession(
     private var job: Job? = null
     private var call: Call? = null
     private var focusRequest: AudioFocusRequest? = null
+
     @Volatile
     private var activeTrack: AudioTrack? = null
 
     private val recorder = M4aRecorder(recordingStore.directory)
+    private val noiseFilter = NoiseFilter(DeviceClient.SAMPLE_RATE)
+    private val echoCanceller = EchoCanceller(DeviceClient.SAMPLE_RATE)
 
     @Volatile
     private var recordingRequested = false
 
+    @Volatile
+    private var noiseFilterEnabled = true
+
     val isActive: Boolean get() = _status.value.phase != StreamPhase.Idle
 
-    fun start(baseUrl: String, apiToken: String, alsoRecord: Boolean = false) {
+    fun start(
+        baseUrl: String,
+        apiToken: String,
+        alsoRecord: Boolean = false,
+        audioPort: Int = DeviceClient.DEFAULT_AUDIO_PORT,
+    ) {
         if (isActive) {
             if (alsoRecord) startRecording()
             return
         }
         recordingRequested = alsoRecord
-        _status.value = StreamStatus(phase = StreamPhase.Connecting)
-        job = scope.launch { stream(baseUrl, apiToken) }
+        _status.value = StreamStatus(phase = StreamPhase.Connecting, noiseFiltered = noiseFilterEnabled)
+        job = scope.launch { stream(baseUrl, apiToken, audioPort) }
     }
 
     fun stop() {
@@ -105,22 +118,32 @@ class PcmStreamSession(
         _status.value = _status.value.copy(muted = muted)
     }
 
+    /** Playback, metering and any running recording all follow this switch. */
+    fun toggleNoiseFilter() {
+        noiseFilterEnabled = !noiseFilterEnabled
+        if (noiseFilterEnabled) noiseFilter.reset()
+        _status.value = _status.value.copy(
+            noiseFiltered = noiseFilterEnabled,
+            noiseLearning = noiseFilterEnabled && _status.value.phase == StreamPhase.Live,
+        )
+    }
+
     fun consumeSavedRecording() {
         _status.value = _status.value.copy(savedRecordingId = null)
     }
 
     fun clearError() {
-        if (_status.value.phase == StreamPhase.Idle) _status.value = StreamStatus()
+        if (_status.value.phase == StreamPhase.Idle) _status.value = StreamStatus(noiseFiltered = noiseFilterEnabled)
     }
 
-    private suspend fun stream(baseUrl: String, apiToken: String) {
+    private suspend fun stream(baseUrl: String, apiToken: String, audioPort: Int) {
         var track: AudioTrack? = null
         var error: StreamError? = null
         var savedId: String? = null
         var recordingStartedAt = 0L
 
         try {
-            val response = http.newCall(deviceClient.audioRequest(baseUrl, apiToken))
+            val response = http.newCall(deviceClient.audioRequest(baseUrl, apiToken, audioPort))
                 .also { call = it }
                 .execute()
 
@@ -134,9 +157,12 @@ class PcmStreamSession(
 
                 track = buildTrack().apply { play() }
                 activeTrack = track
+                noiseFilter.reset()
+                echoCanceller.reset()
                 requestFocus()
                 _status.value = _status.value.copy(
                     phase = StreamPhase.Live,
+                    noiseLearning = noiseFilterEnabled,
                     listeningSinceMillis = System.currentTimeMillis(),
                 )
 
@@ -146,8 +172,19 @@ class PcmStreamSession(
                     val read = source.read(buffer)
                     if (read <= 0) break
 
+                    if (noiseFilterEnabled) {
+                        echoCanceller.process(buffer, read)
+                        noiseFilter.process(buffer, read)
+                    }
                     track.write(buffer, 0, read)
+                    // The samples just handed to the speaker are what comes back as echo.
+                    echoCanceller.playback(buffer, read, silent = _status.value.muted)
                     _level.value = levelOf(buffer, read)
+
+                    val learning = noiseFilterEnabled && noiseFilter.isLearning
+                    if (learning != _status.value.noiseLearning) {
+                        _status.value = _status.value.copy(noiseLearning = learning)
+                    }
 
                     if (recordingRequested && !recorder.isRecording) {
                         recorder.start()
@@ -192,7 +229,11 @@ class PcmStreamSession(
             call = null
             recordingRequested = false
             _level.value = 0f
-            _status.value = StreamStatus(error = error, savedRecordingId = savedId)
+            _status.value = StreamStatus(
+                noiseFiltered = noiseFilterEnabled,
+                error = error,
+                savedRecordingId = savedId,
+            )
         }
     }
 

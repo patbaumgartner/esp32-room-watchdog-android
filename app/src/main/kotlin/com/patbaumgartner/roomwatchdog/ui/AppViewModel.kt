@@ -6,13 +6,17 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.patbaumgartner.roomwatchdog.AppVisibility
 import com.patbaumgartner.roomwatchdog.R
+import com.patbaumgartner.roomwatchdog.data.device.DeviceClient
 import com.patbaumgartner.roomwatchdog.data.device.DeviceStatus
 import com.patbaumgartner.roomwatchdog.data.device.DeviceException
+import com.patbaumgartner.roomwatchdog.data.device.TelemetryFrame
+import com.patbaumgartner.roomwatchdog.data.device.TelemetryStream
 import com.patbaumgartner.roomwatchdog.data.gotify.GotifyException
 import com.patbaumgartner.roomwatchdog.data.model.latestRoomSignals
 import com.patbaumgartner.roomwatchdog.data.settings.WatchdogConfig
 import com.patbaumgartner.roomwatchdog.notifications.AlertNotifier
 import com.patbaumgartner.roomwatchdog.service.AlertConnectionService
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -75,8 +79,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val device = app.container.deviceClient
     private val stream = app.container.streamSession
     private var pollJob: Job? = null
+    private var telemetryJob: Job? = null
     private var messageJob: Job? = null
     private var soundIndicatorJob: Job? = null
+
+    @Volatile
+    private var telemetry: TelemetryStream? = null
+
+    @Volatile
+    private var audioPort = DeviceClient.DEFAULT_AUDIO_PORT
 
     private val _state = MutableStateFlow(
         HomeState(
@@ -140,19 +151,114 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         startStatusPolling()
+        startTelemetry()
     }
 
     /**
-     * Keeps the room reading fresh so the waveform breathes even when nobody is listening. The
-     * firmware serves only one audio consumer at a time and blocks /status while streaming, so the
-     * poll pauses for the duration of a live session.
+     * Live telemetry rides the device's WebSocket: it pushes a frame whenever the room changes and
+     * a heartbeat otherwise, so the UI follows the sensor instead of a poll timer. The device keeps
+     * one telemetry client, so the socket is dropped whenever the app leaves the foreground.
+     */
+    private fun startTelemetry() {
+        telemetryJob?.cancel()
+        telemetryJob = viewModelScope.launch {
+            var backoffMs = TELEMETRY_MIN_BACKOFF_MS
+            while (true) {
+                val config = settings.current
+                if (!AppVisibility.isForeground || !config.isConfigured) {
+                    closeTelemetry()
+                    delay(TELEMETRY_IDLE_CHECK_MS)
+                    continue
+                }
+                if (telemetry == null) {
+                    val connected = CompletableDeferred<Boolean>()
+                    val socket = app.container.telemetryStream(
+                        baseUrl = config.deviceUrl,
+                        apiToken = config.apiToken,
+                        onOpen = {
+                            connected.complete(true)
+                            _state.update { it.copy(connected = true, error = null) }
+                        },
+                        onFrame = ::onTelemetryFrame,
+                        onClosed = {
+                            connected.complete(false)
+                            telemetry = null
+                            _state.update { current -> current.copy(connected = false) }
+                        },
+                    )
+                    telemetry = socket
+                    socket.connect()
+                    backoffMs = if (connected.await()) TELEMETRY_MIN_BACKOFF_MS else minOf(
+                        backoffMs * 2,
+                        TELEMETRY_MAX_BACKOFF_MS
+                    )
+                }
+                delay(backoffMs)
+            }
+        }
+    }
+
+    private fun closeTelemetry() {
+        telemetry?.close()
+        telemetry = null
+    }
+
+    private fun onTelemetryFrame(frame: TelemetryFrame) {
+        when (frame) {
+            is TelemetryFrame.Hello -> {
+                audioPort = frame.audioPort
+            }
+
+            is TelemetryFrame.Telemetry -> _state.update {
+                it.copy(
+                    deviceStatus = frame.status,
+                    lastUpdated = System.currentTimeMillis(),
+                    connected = true,
+                    presenceDetected = frame.status.presence,
+                    error = null,
+                )
+            }
+
+            is TelemetryFrame.Event -> onTelemetryEvent(frame)
+        }
+    }
+
+    /** The socket reports sound before Gotify does, so the indicator follows it directly. */
+    private fun onTelemetryEvent(event: TelemetryFrame.Event) {
+        when (event.event) {
+            TelemetryFrame.Event.Kind.Sound -> {
+                val now = System.currentTimeMillis()
+                _state.update { it.copy(soundDetected = true, lastSoundAtMillis = now) }
+                soundIndicatorJob?.cancel()
+                soundIndicatorJob = viewModelScope.launch {
+                    delay(SOUND_INDICATOR_MS)
+                    _state.update { current ->
+                        if (current.lastSoundAtMillis == now) current.copy(soundDetected = false) else current
+                    }
+                }
+            }
+
+            TelemetryFrame.Event.Kind.Presence ->
+                _state.update { it.copy(presenceDetected = true) }
+
+            TelemetryFrame.Event.Kind.Cleared ->
+                _state.update { it.copy(presenceDetected = false) }
+
+            else -> Unit
+        }
+    }
+
+    /**
+     * Fallback for when the telemetry socket is down: the REST snapshot keeps the room reading from
+     * going stale. It pauses during a session because firmware old enough to lack the socket also
+     * serves audio from the API port, and answering /status there drops the stream.
      */
     private fun startStatusPolling() {
         pollJob?.cancel()
         pollJob = viewModelScope.launch {
             while (true) {
                 val config = settings.current
-                if (AppVisibility.isForeground && config.isConfigured && !stream.isActive) {
+                if (AppVisibility.isForeground && config.isConfigured && telemetry == null && !stream.isActive) {
                     device.status(config.deviceUrl, config.apiToken).onSuccess { status ->
                         _state.update {
                             it.copy(
@@ -176,7 +282,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val action = app.container.notifier.autoStartFrom(intent) ?: return
         val config = settings.current
         if (config.isConfigured) {
-            stream.start(config.deviceUrl, config.apiToken, action == AlertNotifier.AutoStart.RECORD)
+            stream.start(
+                baseUrl = config.deviceUrl,
+                apiToken = config.apiToken,
+                alsoRecord = action == AlertNotifier.AutoStart.RECORD,
+                audioPort = audioPort,
+            )
         }
     }
 
@@ -248,6 +359,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             showMessage(app.getString(R.string.message_setup_required))
             return
         }
+        if (telemetry?.requestCalibration() == true) {
+            showMessage(app.getString(R.string.message_calibrating))
+            return
+        }
         viewModelScope.launch {
             device.calibrate(config.deviceUrl, config.apiToken)
                 .onSuccess { showMessage(app.getString(R.string.message_calibrating)) }
@@ -257,7 +372,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshStatus() {
         val config = settings.current
-        if (config.deviceUrl.isBlank() || stream.isActive) return
+        if (config.deviceUrl.isBlank() || telemetry != null || stream.isActive) return
         viewModelScope.launch {
             device.status(config.deviceUrl, config.apiToken).onSuccess { status ->
                 _state.update {
@@ -277,7 +392,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startListening() {
         val config = settings.current
-        if (config.isConfigured) stream.start(config.deviceUrl, config.apiToken)
+        if (config.isConfigured) stream.start(config.deviceUrl, config.apiToken, audioPort = audioPort)
     }
 
     fun stopListening() {
@@ -291,6 +406,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun startRecording() = stream.startRecording()
     fun stopRecording() = stream.stopRecording()
     fun toggleMuted() = stream.toggleMuted()
+    fun toggleNoiseFilter() = stream.toggleNoiseFilter()
     fun renameRecording(id: String, displayName: String) {
         app.container.recordings.rename(id, displayName)
     }
@@ -319,6 +435,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         stream.stop()
+        closeTelemetry()
     }
 
     private fun deviceSetupError(error: Throwable?): String = when ((error as? DeviceException)?.kind) {
@@ -352,5 +469,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         const val POLL_INTERVAL_MS = 2_000L
         const val MESSAGE_DURATION_MS = 4_000L
         const val SOUND_INDICATOR_MS = 8_000L
+        const val TELEMETRY_MIN_BACKOFF_MS = 2_000L
+        const val TELEMETRY_MAX_BACKOFF_MS = 30_000L
+        const val TELEMETRY_IDLE_CHECK_MS = 1_000L
     }
 }

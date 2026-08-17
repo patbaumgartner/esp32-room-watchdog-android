@@ -10,13 +10,18 @@ small; dependencies flow from UI and services toward data and platform adapters.
 - `service/AlertConnectionService` owns the long-lived Gotify WebSocket,
   reconnect backoff, missed-message synchronization, and background routing.
 - `data/device/` handles authenticated ESP32 status, calibration, and audio
-  requests.
+  requests, plus the `/ws` telemetry socket the firmware pushes sensor frames on.
 - `data/gotify/` handles Gotify REST calls, WebSocket decoding, and conversion to
   domain events.
 - `data/network/EndpointPolicy` is the shared trust boundary for configured URLs.
   Gotify requires HTTPS; device cleartext is restricted to local/private hosts.
 - `audio/PcmStreamSession` owns the ESP32 audio connection and fans PCM frames
   out to playback, metering, and optional recording.
+- `audio/EchoCanceller` subtracts the phone's own playback from the captured
+  frames, so the two devices can sit on the same desk without howling.
+- `audio/NoiseFilter` then cleans what is left (DC block, learnt spectral noise
+  profile, low-pass); both stages follow the one filter switch shown while
+  listening.
 - `recordings/` encodes AAC/M4A into app-private storage and persists small
   recording metadata.
 - `data/settings/` stores ordinary configuration in private preferences and
@@ -37,10 +42,20 @@ ESP32 -> Gotify -> AlertConnectionService -> WatchdogEvent parser
                                       `-> AlertNotifier -> notification action
                                                                `-> AppViewModel
 
-ESP32 /audio.pcm -> PcmStreamSession -> AudioTrack
-                                    |-> level meter
-                                    `-> M4aRecorder -> RecordingStore
+ESP32 /ws -> TelemetryStream -> AppViewModel (live room state, sound events)
+
+ESP32 /audio.pcm -> PcmStreamSession -> EchoCanceller -> NoiseFilter -> AudioTrack
+                                                                    |-> level meter
+                                                                    `-> M4aRecorder -> RecordingStore
 ```
+
+Everything the device answers on its API port - `/status`, `/calibrate` and the
+`/ws` telemetry socket - is one authenticated async server; `/audio.pcm` has a
+second, synchronous server on its own port because an async chunked response
+cannot sustain 48 kHz. The socket's hello frame announces that port. Telemetry
+is the live source while the socket is up; the REST poll is only a fallback, and
+it pauses during a listening session so firmware that still shares one port
+cannot have its stream cut short.
 
 Unknown Gotify messages are ignored after advancing the synchronization cursor.
 This prevents unrelated applications on the same Gotify account from appearing
@@ -57,11 +72,12 @@ as room-presence alerts.
   never exposed.
 - The foreground service is the only owner of the Gotify connection.
   `PcmStreamSession` is process-scoped and supports one device audio consumer,
-  matching the firmware constraint.
+  matching the firmware constraint. The telemetry socket is dropped whenever the
+  app leaves the foreground, since the device keeps only one such client.
 
 ## Tests
 
-JVM unit tests cover endpoint trust rules and Gotify event parsing. Android lint
-validates resources, manifest declarations, API levels, and Compose usage. Both
-debug and minified release variants are assembled in CI to exercise resource
-shrinking and R8.
+JVM unit tests cover endpoint trust rules, Gotify event parsing, and the audio
+chain (noise learning, echo convergence). Android lint validates resources,
+manifest declarations, API levels, and Compose usage. Both debug and minified
+release variants are assembled in CI to exercise resource shrinking and R8.

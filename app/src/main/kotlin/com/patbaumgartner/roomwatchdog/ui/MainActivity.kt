@@ -52,6 +52,8 @@ import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.FiberManualRecord
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.FilterAlt
+import androidx.compose.material.icons.outlined.FilterAltOff
 import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.MoreHoriz
@@ -410,6 +412,7 @@ private fun HomeScreen(state: HomeState, viewModel: AppViewModel) {
         Spacer(Modifier.height(20.dp))
         Text(
             when {
+                isLive && stream.noiseLearning -> stringResource(R.string.state_learning_room)
                 isLive -> ""
                 isConnecting -> stringResource(R.string.state_opening_stream)
                 state.config.isConfigured -> stringResource(R.string.state_tap_listen)
@@ -440,6 +443,19 @@ private fun HomeScreen(state: HomeState, viewModel: AppViewModel) {
                         },
                         contentDescription = stringResource(
                             if (stream.muted) R.string.action_unmute else R.string.action_mute,
+                        ),
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    CircleAction(
+                        onClick = viewModel::toggleNoiseFilter,
+                        icon = if (stream.noiseFiltered) Icons.Outlined.FilterAlt else Icons.Outlined.FilterAltOff,
+                        contentDescription = stringResource(
+                            if (stream.noiseFiltered) {
+                                R.string.action_noise_filter_off
+                            } else {
+                                R.string.action_noise_filter_on
+                            },
                         ),
                         containerColor = MaterialTheme.colorScheme.surfaceVariant,
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,

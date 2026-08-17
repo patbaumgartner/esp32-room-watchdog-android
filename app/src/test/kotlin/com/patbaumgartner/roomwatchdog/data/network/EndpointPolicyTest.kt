@@ -47,4 +47,17 @@ class EndpointPolicyTest {
             assertEquals(EndpointIssue.Invalid, error.issue)
         }
     }
+
+    @Test
+    fun `audio takes the device's own port unless the URL already names one`() {
+        assertEquals(
+            "http://192.168.1.10:81/audio.pcm",
+            deviceAudioUrl("http://192.168.1.10", 81).toString(),
+        )
+        assertEquals(
+            "https://watchdog.example.com:8443/audio.pcm",
+            deviceAudioUrl("https://watchdog.example.com:8443", 81).toString(),
+        )
+        assertEquals("http://192.168.1.10/ws", deviceSocketUrl("http://192.168.1.10").toString())
+    }
 }

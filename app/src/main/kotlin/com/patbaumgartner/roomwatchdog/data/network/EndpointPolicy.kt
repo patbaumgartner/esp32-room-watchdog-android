@@ -14,6 +14,22 @@ internal fun deviceBaseUrl(value: String): HttpUrl {
     throw EndpointValidationException(EndpointIssue.Insecure)
 }
 
+/**
+ * Audio comes from a second, synchronous server - an async chunked response could not keep up with
+ * 48 kHz - so the stream keeps the API's host and scheme but rides on its own port. A port already
+ * in the configured URL is left alone: that is how a reverse proxy in front of the device is
+ * addressed.
+ */
+internal fun deviceAudioUrl(value: String, audioPort: Int?): HttpUrl {
+    val base = deviceBaseUrl(value)
+    val builder = base.newBuilder().addPathSegment("audio.pcm")
+    if (audioPort != null && base.port == HttpUrl.defaultPort(base.scheme)) builder.port(audioPort)
+    return builder.build()
+}
+
+internal fun deviceSocketUrl(value: String): HttpUrl =
+    deviceBaseUrl(value).newBuilder().addPathSegment("ws").build()
+
 internal fun gotifyBaseUrl(value: String): HttpUrl {
     val url = parseBaseUrl(value)
     if (url.scheme != "https") throw EndpointValidationException(EndpointIssue.Insecure)
@@ -43,7 +59,7 @@ private fun String.isPrivateNetworkHost(): Boolean {
     val octets = host.split('.').map { it.toIntOrNull() ?: return false }
     if (octets.size != 4 || octets.any { it !in 0..255 }) return false
     return octets[0] == 10 || octets[0] == 127 ||
-        (octets[0] == 169 && octets[1] == 254) ||
-        (octets[0] == 172 && octets[1] in 16..31) ||
-        (octets[0] == 192 && octets[1] == 168)
+            (octets[0] == 169 && octets[1] == 254) ||
+            (octets[0] == 172 && octets[1] in 16..31) ||
+            (octets[0] == 192 && octets[1] == 168)
 }
