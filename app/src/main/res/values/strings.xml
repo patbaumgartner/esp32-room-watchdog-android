@@ -1,0 +1,106 @@
+<resources>
+    <string name="app_name">Room Watchdog</string>
+    <string name="default_room">Room</string>
+
+    <string name="channel_alerts">Room alerts</string>
+    <string name="channel_alerts_description">Presence and sound detected in the room.</string>
+    <string name="channel_status">Connection status</string>
+    <string name="channel_status_description">Ongoing indicator showing the link to your Gotify server.</string>
+
+    <string name="alert_presence">Someone is in the %1$s</string>
+    <string name="alert_sound">Sound in the %1$s</string>
+    <string name="alert_online">%1$s sensor online</string>
+    <string name="alert_calibrating">%1$s sensor calibrating</string>
+    <string name="alert_cleared">%1$s is empty</string>
+
+    <string name="action_listen">Listen</string>
+    <string name="action_record">Record</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_share">Share</string>
+    <string name="action_play">Play</string>
+    <string name="action_mute">Mute</string>
+    <string name="action_unmute">Unmute</string>
+    <string name="action_close">Close</string>
+
+    <string name="status_connected">Watchdog connected</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_reconnecting">Reconnecting…</string>
+    <string name="status_action_required">Sign in again to keep receiving alerts</string>
+
+    <string name="state_quiet">Quiet</string>
+    <string name="state_presence">Someone is here</string>
+    <string name="state_sound">Noise detected</string>
+    <string name="state_connecting">Connecting</string>
+    <string name="state_listening">Listening</string>
+    <string name="state_recording">Recording</string>
+    <string name="state_not_connected">Not connected</string>
+    <string name="state_audio_playing">Audio is playing on this phone</string>
+    <string name="state_room_calm">The room is calm</string>
+    <string name="state_sound_activity">Sound activity was just detected</string>
+    <string name="state_movement">Movement in the room</string>
+    <string name="state_distance">About %1$.1f m away</string>
+    <string name="state_opening_stream">Opening the stream</string>
+    <string name="state_tap_listen">Tap to listen</string>
+    <string name="state_tap_setup">Tap to set up</string>
+    <string name="signal_presence">Person nearby</string>
+    <string name="signal_noise">Noise detected</string>
+
+    <string name="menu_calibrate">Calibrate</string>
+    <string name="menu_recordings">Recordings</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_more">More</string>
+
+    <string name="recordings_title">Recordings</string>
+    <string name="recordings_empty">No recordings yet.</string>
+    <string name="recordings_empty_hint">Start listening, then tap Record to keep a moment.</string>
+    <string name="recording_details">%1$d s · %2$d KB</string>
+    <string name="recording_actions">Recording actions</string>
+    <string name="recording_rename_title">Rename recording</string>
+    <string name="recording_name">Name</string>
+    <string name="recording_delete_title">Delete recording?</string>
+    <string name="recording_delete_message">“%1$s” will be permanently deleted.</string>
+    <string name="recording_delete_failed">The recording could not be deleted. Check available storage and try again.</string>
+    <string name="recording_open_failed">No app on this phone can open the recording.</string>
+    <string name="recording_share_failed">The recording could not be shared.</string>
+    <string name="recording_share_chooser">Share recording</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_room">Room name</string>
+    <string name="settings_device_url">Device address</string>
+    <string name="settings_api_token">Device API key</string>
+    <string name="settings_gotify_url">Gotify server</string>
+    <string name="settings_gotify_token">Gotify client token</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_use_developer">Use developer setup</string>
+    <string name="settings_credentials_note">Credentials are encrypted on this phone and are never included in recordings or notifications.</string>
+    <string name="settings_open_source_licenses">Open-source licenses</string>
+    <string name="settings_open_source_licenses_title">Open-source licenses</string>
+
+    <string name="message_settings_saved">Settings saved</string>
+    <string name="message_setup_required">Add your device settings first</string>
+    <string name="message_calibrating">Calibrating — leave the room empty</string>
+    <string name="message_calibration_failed">The device did not accept the calibration request</string>
+
+    <string name="error_setup_missing">Add the device key and a Gotify client token to continue.</string>
+    <string name="error_device_unreachable">The device is not reachable on this network.</string>
+    <string name="error_device_auth">The device API key was rejected.</string>
+    <string name="error_device_url">Enter a valid http:// or https:// device address.</string>
+    <string name="error_device_insecure">Plain HTTP is allowed only for local or private-network devices.</string>
+    <string name="error_stream_auth">Check the device API key</string>
+    <string name="error_stream_busy">Another listener is connected</string>
+    <string name="error_stream_unreachable">Connect to home Wi‑Fi or VPN</string>
+    <string name="error_stream_unknown">The audio stream stopped</string>
+    <string name="error_gotify_auth">Gotify rejected that client token.</string>
+    <string name="error_gotify_https">The Gotify server must use https.</string>
+    <string name="error_gotify_unreachable">The Gotify server is not reachable.</string>
+    <string name="error_app_token">That is the firmware application token. Create a Gotify client token instead.</string>
+
+    <string name="cd_listen">Start listening</string>
+    <string name="cd_listening">Listening</string>
+    <string name="cd_stop">Stop listening</string>
+    <string name="cd_record">Start recording</string>
+    <string name="cd_stop_recording">Stop recording</string>
+    <string name="cd_back">Back</string>
+</resources>

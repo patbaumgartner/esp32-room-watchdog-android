@@ -1,0 +1,196 @@
+package com.patbaumgartner.roomwatchdog.service
+
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.net.ConnectivityManager
+import android.net.Network
+import android.os.Build
+import android.os.IBinder
+import androidx.core.app.ServiceCompat
+import androidx.core.content.getSystemService
+import com.patbaumgartner.roomwatchdog.R
+import com.patbaumgartner.roomwatchdog.RoomWatchdogApp
+import com.patbaumgartner.roomwatchdog.data.gotify.toWatchdogEvent
+import com.patbaumgartner.roomwatchdog.data.gotify.GotifyStream
+import com.patbaumgartner.roomwatchdog.data.model.WatchdogEventType
+import com.patbaumgartner.roomwatchdog.data.settings.WatchdogConfig
+import com.patbaumgartner.roomwatchdog.notifications.AlertNotifier
+import kotlin.math.min
+import kotlin.math.pow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+enum class ConnectionState { Connecting, Connected, Reconnecting, Unauthorised }
+
+/**
+ * Keeps one Gotify websocket alive so alerts arrive without a cloud push service.
+ * Android requires a foreground service for this, hence the quiet ongoing notification.
+ */
+class AlertConnectionService : Service() {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private lateinit var app: RoomWatchdogApp
+
+    private var stream: GotifyStream? = null
+    private var reconnectJob: Job? = null
+    private var attempt = 0
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        app = application as RoomWatchdogApp
+        startForeground(getString(R.string.status_connecting), null)
+        registerNetworkCallback()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        connect()
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        stream?.close()
+        unregisterNetworkCallback()
+        scope.cancel()
+        state.value = ConnectionState.Connecting
+        super.onDestroy()
+    }
+
+    private fun connect() {
+        val config = app.container.settings.current
+        if (!config.isConfigured) {
+            stopSelf()
+            return
+        }
+        reconnectJob?.cancel()
+        stream?.close()
+
+        state.value = if (attempt == 0) ConnectionState.Connecting else ConnectionState.Reconnecting
+
+        stream = app.container.gotifyStream(
+            baseUrl = config.gotifyUrl,
+            clientToken = config.gotifyClientToken,
+            onOpen = {
+                attempt = 0
+                state.value = ConnectionState.Connected
+                startForeground(getString(R.string.status_connected), config.roomName)
+                scope.launch { syncMissed(config) }
+            },
+            onMessage = { message -> scope.launch { handle(message.toWatchdogEvent(), config) } },
+            onClosed = { unauthorised ->
+                if (unauthorised) {
+                    state.value = ConnectionState.Unauthorised
+                    startForeground(getString(R.string.status_action_required), null)
+                } else {
+                    scheduleReconnect()
+                }
+            },
+        ).also { it.connect() }
+    }
+
+    private fun scheduleReconnect() {
+        if (reconnectJob?.isActive == true) return
+        state.value = ConnectionState.Reconnecting
+        startForeground(getString(R.string.status_reconnecting), null)
+        val delayMillis = backoffMillis(attempt++)
+        reconnectJob = scope.launch {
+            delay(delayMillis)
+            connect()
+        }
+    }
+
+    private suspend fun syncMissed(config: WatchdogConfig) {
+        val since = app.container.settings.current.lastMessageId
+        if (since <= 0) return
+        app.container.gotifyClient
+            .messagesSince(config.gotifyUrl, config.gotifyClientToken, since)
+            .getOrNull()
+            ?.forEach { handle(it.toWatchdogEvent(), config) }
+    }
+
+    private fun handle(event: com.patbaumgartner.roomwatchdog.data.model.WatchdogEvent, config: WatchdogConfig) {
+        if (config.gotifyAppId != WatchdogConfig.ALL_APPLICATIONS && event.appId != config.gotifyAppId) return
+        if (event.type == WatchdogEventType.Unknown) {
+            app.container.settings.rememberMessageId(event.messageId)
+            return
+        }
+        if (!app.container.events.record(event)) return
+        app.container.settings.rememberMessageId(event.messageId)
+        if (com.patbaumgartner.roomwatchdog.AppVisibility.isForeground) {
+            // The live screen already shows this; don't stack a notification on top of it.
+            app.container.notifier.cancelEventAlerts()
+            return
+        }
+        app.container.notifier.notifyEvent(event, config.roomName.ifBlank { getString(R.string.app_name) })
+    }
+
+    private fun startForeground(title: String, detail: String?) {
+        val notification = app.container.notifier.foregroundNotification(title, detail)
+        ServiceCompat.startForeground(
+            this,
+            AlertNotifier.ID_FOREGROUND,
+            notification,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            } else {
+                0
+            },
+        )
+    }
+
+    private fun registerNetworkCallback() {
+        val manager = getSystemService<ConnectivityManager>() ?: return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                if (state.value != ConnectionState.Connected) {
+                    attempt = 0
+                    connect()
+                }
+            }
+        }
+        runCatching { manager.registerDefaultNetworkCallback(callback) }
+        networkCallback = callback
+    }
+
+    private fun unregisterNetworkCallback() {
+        val manager = getSystemService<ConnectivityManager>() ?: return
+        networkCallback?.let { runCatching { manager.unregisterNetworkCallback(it) } }
+        networkCallback = null
+    }
+
+    private fun backoffMillis(attempt: Int): Long {
+        val exponential = MIN_BACKOFF_MS * 2.0.pow(attempt)
+        val capped = min(exponential, MAX_BACKOFF_MS.toDouble()).toLong()
+        return capped + (0..JITTER_MS).random()
+    }
+
+    companion object {
+        private const val MIN_BACKOFF_MS = 5_000L
+        private const val MAX_BACKOFF_MS = 20 * 60 * 1000L
+        private const val JITTER_MS = 2_000L
+
+        val state = MutableStateFlow(ConnectionState.Connecting)
+        val connectionState: StateFlow<ConnectionState> = state.asStateFlow()
+
+        fun start(context: Context) {
+            val intent = Intent(context, AlertConnectionService::class.java)
+            context.startForegroundService(intent)
+        }
+
+        fun stop(context: Context) {
+            context.stopService(Intent(context, AlertConnectionService::class.java))
+        }
+    }
+}

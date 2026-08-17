@@ -1,0 +1,30 @@
+---
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Zurich
+    open-pull-requests-limit: 5
+    groups:
+      androidx:
+        patterns: ['androidx.*']
+      kotlin:
+        patterns: ['org.jetbrains.kotlin*']
+      okhttp:
+        patterns: ['com.squareup.okhttp3:*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:15'
+      timezone: Europe/Zurich
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ['*']

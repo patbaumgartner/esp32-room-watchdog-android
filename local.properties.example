@@ -1,0 +1,12 @@
+# Copy to local.properties (gitignored) and fill in.
+# Values here only prefill the debug build's onboarding fields. Never commit real tokens.
+
+sdk.dir=/path/to/Android/Sdk
+
+watchdog.roomName=Studio
+watchdog.deviceUrl=http://192.168.1.10
+watchdog.apiToken=
+watchdog.gotifyUrl=https://gotify.example.com
+# Must be a CLIENT token (gtfyc...), not the firmware's application token (gtfya...).
+# Create one in the Gotify web UI under "Clients", or leave empty and sign in once in the app.
+watchdog.gotifyClientToken=

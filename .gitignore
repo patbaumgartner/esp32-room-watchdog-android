@@ -1,0 +1,45 @@
+# Gradle and Kotlin
+.gradle/
+.kotlin/
+**/build/
+
+# Local Android SDK and generated captures
+/local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Android Studio and IntelliJ IDEA
+.idea/
+*.iml
+out/
+
+# Build artifacts
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Signing material and local service configuration
+*.jks
+*.keystore
+*.key
+*.p12
+*.pem
+*.pfx
+.env
+.env.*
+!.env.example
+keystore.properties
+google-services.json
+service-account*.json
+!debug.keystore
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.log
+*.swp
+*~
