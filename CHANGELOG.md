@@ -36,5 +36,13 @@ No public release has been published yet.
 - Presence and sound event notifications are suppressed while the app is visible,
   including when a second activity instance is started from a notification
 - A listening session no longer stops after about a minute on a short network read
+- The Gotify client token is sent as a header instead of a URL query parameter,
+  keeping it out of reverse-proxy access logs
+- Stored event text is bounded, so an overlong message cannot slow app startup
+- A live session and the UI no longer overwrite each other's state, which could
+  revert a mute or recording tap
+- A websocket that never completes its handshake is retried instead of leaving
+  alerts and telemetry silently dead
+- Recordings orphaned by a killed process are removed instead of accumulating
 - Android 17 now requests local-network access before connecting to the ESP32
 - Gotify background streaming no longer fails before opening its WebSocket
