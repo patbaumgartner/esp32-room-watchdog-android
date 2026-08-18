@@ -1,0 +1,133 @@
+# Room Watchdog — Agent Guide
+
+Android companion for a self-hosted ESP32 room sensor. Start with [README.md](README.md)
+for the product, [docs/architecture.md](docs/architecture.md) for the design, and
+[CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow. This file only covers what
+those don't, or what is easy to get wrong.
+
+## Build and validate
+
+Gradle needs the SDK location from `ANDROID_HOME` or `sdk.dir` in `local.properties`, or it
+stops with `SDK location not found`. Builds on JDK 17, same as CI.
+
+```bash
+export ANDROID_HOME="$HOME/Android/Sdk"
+./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
+shellcheck scripts/*.sh
+```
+
+That is the full CI gate — run it before claiming a change is done. `scripts/deploy-device.sh`
+and `scripts/deploy-emulator.sh` build, install and launch.
+
+## Build traps
+
+- **Do not apply `org.jetbrains.kotlin.android`.** AGP 9 has Kotlin built in and the build
+  fails with "no longer required since AGP 9.0". Exactly three plugins are applied; there is
+  deliberately no `kotlin { compilerOptions { jvmTarget } }` block either.
+- `app/build.gradle.kts` reads `local.properties` (or `WATCHDOG_*` env vars) into five
+  debug-only `BuildConfig` fields, escaped by `asBuildConfigLiteral()`. Keep the escaping —
+  naive interpolation lets a token break the generated source. Release re-declares all five
+  as empty so a release build can never carry a secret.
+- The configuration cache is on; a change that reads files at configuration time can break it.
+
+## Architecture
+
+- Manual DI: one [AppContainer](app/src/main/kotlin/com/patbaumgartner/roomwatchdog/di/AppContainer.kt)
+  built in `RoomWatchdogApp.onCreate()`, reached via `(application as RoomWatchdogApp).container`.
+  No Hilt, no Koin. No Room, no DataStore — `SharedPreferences` plus kotlinx.serialization JSON.
+- Two OkHttp clients from one pool: `apiHttpClient` (bounded timeouts) and `streamingHttpClient`
+  (no read/call timeout, for the PCM stream and both WebSockets). Anything using the streaming
+  client needs its own liveness bound — an unresponsive server will otherwise hang forever.
+- State is `MutableStateFlow` + `asStateFlow()`, backing field `_name`. Mutate with
+  `update { }`, never `value = value.copy(...)`: the UI thread and background loops write the
+  same flows. Repositories that write from several threads are `@Synchronized`.
+- One `AppViewModel` and one `HomeState`; navigation is a `sealed interface AppScreen`, not
+  Navigation-Compose. Screens live in one file each under `ui/` and take `(state, viewModel)`.
+
+## Keep the core JVM-testable
+
+There are no instrumentation, Robolectric or Compose tests, and that is deliberate — it works
+only because the interesting logic has no Android imports. Preserve that split:
+
+- `audio/` DSP (`NoiseFilter`, `EchoCanceller`, `Fft`) is pure Kotlin. Only `PcmStreamSession`
+  touches `AudioTrack`/`AudioManager`.
+- `data/network/`, `data/model/`, `data/device/`, `data/gotify/` are framework-free and depend
+  only on OkHttp and kotlinx.serialization.
+
+Putting an `android.*` import into those packages silently makes the behaviour untestable.
+Validation runs before any I/O so clients can be tested against a real `OkHttpClient` with no
+server.
+
+## Conventions
+
+- User-facing text belongs in `strings.xml`; non-Compose classes take a `Context`.
+- No logging at all — no `android.util.Log`, no `println`. Failures become state
+  (`HomeState.error`) or are recovered deliberately. See *Observing behaviour* for how to
+  inspect a running build without it.
+- Alerts are suppressed while `AppVisibility.isAttendingRoom` — the UI is on screen *or* a
+  listening session is running. Keep that rule in `AppVisibility`; both the service and the
+  notifier consult it, and a second copy of the condition will drift.
+- Network clients return `Result<T>` and map failures onto a typed `XException(kind)` with a
+  nested `Kind` enum. HTTP status mapping is explicit (`401/403 → Auth`, `409 → Busy`).
+- British spelling (`Unauthorised`, `behaviour`), `internal` for module-private API, trailing
+  commas, 120-column soft limit, `PascalCase` enum entries.
+- KDoc only where the rationale is not obvious; comments explain *why*. No file headers, no
+  restating the next line. There is no ktlint or detekt — don't reorder existing imports as a
+  side effect.
+- Tests are JUnit 4 with backtick sentence names and no mocking library; assertions carry a
+  message first (`assertTrue("expected >20 dB, got $after", …)`).
+- Conventional Commit subjects.
+
+## Security invariants
+
+- `data/network/EndpointPolicy` is the single trust boundary: Gotify must be HTTPS, device
+  cleartext only on private/loopback/`.local` hosts. Route every new URL through it.
+- Credentials go in headers, never in URLs or query strings, and never into logs or state.
+- Tokens are stored through `SecretStore` (Keystore AES/GCM), never plain preferences.
+- Never commit `local.properties`, tokens, APKs or recordings.
+- `lintDebug` reports two warnings on purpose (LAN cleartext, adaptive icons). Don't suppress
+  them globally to get a clean run.
+
+## The device contract changes — verify it
+
+The firmware in [esp32-room-watchdog](https://github.com/patbaumgartner/esp32-room-watchdog)
+has moved `/audio.pcm` between ports more than once. Before changing anything that talks to
+the device, read that repo's `README.md` and `docs/architecture.md`, then confirm against the
+running device — the deployed firmware is often older than the docs. The `/ws` hello frame
+announces the audio port; follow it rather than hardcoding.
+
+Constraints that bite: the device accepts one audio client and one telemetry client, and
+firmware that still serves audio from the API port drops the stream if `/status` is polled
+during a session.
+
+## Verify on hardware
+
+Compiling is not evidence. Audio, notification and lifecycle behaviour are expected to be
+checked on a real device (`scripts/deploy-device.sh`), and behavioural claims should cite what
+was observed — a measurement, a logcat line, or a `dumpsys` reading.
+
+## Observing behaviour without logging
+
+Since the app logs nothing, `dumpsys` is the instrument:
+
+```bash
+adb shell dumpsys notification --noredact | grep -A20 pkg=com.patbaumgartner.roomwatchdog
+adb shell dumpsys activity activities | grep topResumedActivity
+adb shell dumpsys power | grep mWakefulness
+adb shell am start -W -n com.patbaumgartner.roomwatchdog/.ui.MainActivity   # cold-start timing
+```
+
+The foreground notification's title is the Gotify connection state, so `Watchdog connected`
+is proof the socket handshake succeeded. Alert notifications carry `channel=watchdog_alerts`
+and a `when=` epoch, which dates them against `date +%s000`.
+
+Three traps that invalidate a test or block one outright:
+
+- **A locked or dozing phone stops the activity**, so "the app is open" is not true while the
+  screen is off. Confirm `mWakefulness=Awake` and a `topResumedActivity` before concluding
+  anything about foreground behaviour — otherwise an alert firing is correct, not a bug.
+- **`adb install` hangs on the lock screen.** `adb push` still works; the install needs the
+  device unlocked.
+- **A listening session cannot be started from a shell.** The notification actions carry a
+  random token that `AlertNotifier.autoStartFrom` verifies, so a forged `am start` is refused
+  by design. Tap the notification action on the device instead.
