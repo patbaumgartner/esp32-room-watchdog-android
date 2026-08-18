@@ -85,6 +85,7 @@ class GotifyClient(private val http: OkHttpClient) {
                     else GotifyException.Kind.Unreachable,
                     error,
                 )
+
                 is IOException -> GotifyException(GotifyException.Kind.Unreachable, error)
                 else -> GotifyException(GotifyException.Kind.Unknown, error)
             }

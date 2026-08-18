@@ -2,6 +2,9 @@ package com.patbaumgartner.roomwatchdog.data.device
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /** Frames the firmware sends on `/ws`; anything unknown is ignored rather than fatal. */
 sealed interface TelemetryFrame {
@@ -53,4 +56,27 @@ sealed interface TelemetryFrame {
             Unknown,
         }
     }
+}
+
+private val telemetryJson = Json {
+    ignoreUnknownKeys = true
+    coerceInputValues = true
+}
+
+/**
+ * Frames the firmware has not taught this app about, and frames it garbles, return null: telemetry
+ * is advisory, and a socket carrying one bad message must not take the live view down with it.
+ */
+internal fun parseTelemetryFrame(text: String): TelemetryFrame? {
+    val root = runCatching { telemetryJson.parseToJsonElement(text) as? JsonObject }.getOrNull() ?: return null
+    return runCatching {
+        when (root["type"]?.jsonPrimitive?.content) {
+            "hello" -> telemetryJson.decodeFromJsonElement(TelemetryFrame.Hello.serializer(), root)
+            "telemetry" ->
+                TelemetryFrame.Telemetry(telemetryJson.decodeFromJsonElement(DeviceStatus.serializer(), root))
+
+            "event" -> telemetryJson.decodeFromJsonElement(TelemetryFrame.Event.serializer(), root)
+            else -> null
+        }
+    }.getOrNull()
 }

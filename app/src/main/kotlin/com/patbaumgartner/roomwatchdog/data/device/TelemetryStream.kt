@@ -1,8 +1,5 @@
 package com.patbaumgartner.roomwatchdog.data.device
 
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -21,11 +18,6 @@ class TelemetryStream(
     private val onFrame: (TelemetryFrame) -> Unit,
     private val onClosed: (unauthorised: Boolean) -> Unit,
 ) {
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-        coerceInputValues = true
-    }
 
     private var socket: WebSocket? = null
 
@@ -52,19 +44,6 @@ class TelemetryStream(
     /** Asks the device to re-baseline the radar; the room has to be empty for it to mean anything. */
     fun requestCalibration(): Boolean = socket?.send("calibrate") == true
 
-    private fun parse(text: String): TelemetryFrame? {
-        val root = runCatching { json.parseToJsonElement(text) as? JsonObject }.getOrNull() ?: return null
-        return when (root["type"]?.jsonPrimitive?.content) {
-            "hello" -> runCatching { json.decodeFromJsonElement(TelemetryFrame.Hello.serializer(), root) }.getOrNull()
-            "telemetry" -> runCatching {
-                TelemetryFrame.Telemetry(json.decodeFromJsonElement(DeviceStatus.serializer(), root))
-            }.getOrNull()
-
-            "event" -> runCatching { json.decodeFromJsonElement(TelemetryFrame.Event.serializer(), root) }.getOrNull()
-            else -> null
-        }
-    }
-
     private inner class Listener : WebSocketListener() {
 
         override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -73,7 +52,7 @@ class TelemetryStream(
 
         override fun onMessage(webSocket: WebSocket, text: String) {
             if (!active) return
-            parse(text)?.let(onFrame)
+            parseTelemetryFrame(text)?.let(onFrame)
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {

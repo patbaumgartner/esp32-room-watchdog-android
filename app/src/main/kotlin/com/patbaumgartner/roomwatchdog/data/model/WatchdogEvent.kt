@@ -65,12 +65,12 @@ object WatchdogEventParser {
         val text = message.lowercase()
         return when {
             text.contains("presence cleared") || text.contains("room empty") ||
-                text.contains("no presence") || text.contains("nobody is here") ->
+                    text.contains("no presence") || text.contains("nobody is here") ->
                 WatchdogEventType.PresenceCleared
 
             text.contains("person detected") || text.contains("presence detected") ||
-                text.contains("someone is here") || text.contains("someone is close") ||
-                text.contains("person nearby") -> WatchdogEventType.PresenceDetected
+                    text.contains("someone is here") || text.contains("someone is close") ||
+                    text.contains("person nearby") -> WatchdogEventType.PresenceDetected
 
             text.contains("moved to") -> WatchdogEventType.Movement
             text.contains("sound detected") -> WatchdogEventType.SoundDetected
@@ -84,6 +84,7 @@ object WatchdogEventParser {
         "online" -> WatchdogEventType.Online
         "presence_detected", "person_detected", "proximity_detected" ->
             WatchdogEventType.PresenceDetected
+
         "presence_cleared" -> WatchdogEventType.PresenceCleared
         "movement" -> WatchdogEventType.Movement
         "sound_detected" -> WatchdogEventType.SoundDetected

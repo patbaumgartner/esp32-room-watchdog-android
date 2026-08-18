@@ -59,7 +59,7 @@ private fun String.isPrivateNetworkHost(): Boolean {
  */
 private fun String.asIpLiteral(): InetAddress? {
     val looksNumeric = contains(':') ||
-        split('.').let { parts -> parts.size == 4 && parts.all { it.toIntOrNull() in 0..255 } }
+            split('.').let { parts -> parts.size == 4 && parts.all { it.toIntOrNull() in 0..255 } }
     if (!looksNumeric) return null
     return runCatching { InetAddress.getByName(this) }.getOrNull()
 }
