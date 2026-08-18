@@ -34,6 +34,19 @@ class GotifyClientValidationTest {
     }
 
     @Test
+    fun `a malformed Gotify address is reported as such, not as unreachable`() {
+        listOf("not a url", "https://user:password@gotify.example.com").forEach { value ->
+            val result = runBlocking { client.currentUser(value, "client-token") }
+
+            assertEquals(
+                "$value should point at the address field",
+                GotifyException.Kind.InvalidUrl,
+                (result.exceptionOrNull() as GotifyException).kind,
+            )
+        }
+    }
+
+    @Test
     fun `stream URL keeps the HTTPS scheme and carries no credentials`() {
         val url = gotifyStreamUrl("https://gotify.example.com")
 

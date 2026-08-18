@@ -14,7 +14,7 @@ import okhttp3.Request
 class GotifyException(val kind: Kind, cause: Throwable? = null) :
     Exception(kind.name, cause) {
 
-    enum class Kind { NotHttps, Auth, Unreachable, ApplicationToken, Unknown }
+    enum class Kind { NotHttps, InvalidUrl, Auth, Unreachable, ApplicationToken, Unknown }
 }
 
 class GotifyClient(private val http: OkHttpClient) {
@@ -82,7 +82,7 @@ class GotifyClient(private val http: OkHttpClient) {
                 is GotifyException -> error
                 is EndpointValidationException -> GotifyException(
                     if (error.issue == EndpointIssue.Insecure) GotifyException.Kind.NotHttps
-                    else GotifyException.Kind.Unreachable,
+                    else GotifyException.Kind.InvalidUrl,
                     error,
                 )
 

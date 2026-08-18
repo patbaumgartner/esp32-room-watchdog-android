@@ -447,6 +447,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun gotifySetupError(error: Throwable?): String = when ((error as? GotifyException)?.kind) {
         GotifyException.Kind.NotHttps -> app.getString(R.string.error_gotify_https)
+        GotifyException.Kind.InvalidUrl -> app.getString(R.string.error_gotify_url)
         GotifyException.Kind.Auth -> app.getString(R.string.error_gotify_auth)
         GotifyException.Kind.ApplicationToken -> app.getString(R.string.error_app_token)
         else -> app.getString(R.string.error_gotify_unreachable)

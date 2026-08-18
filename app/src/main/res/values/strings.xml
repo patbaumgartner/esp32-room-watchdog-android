@@ -103,6 +103,8 @@
     <string name="error_stream_unknown">The audio stream stopped</string>
     <string name="error_gotify_auth">Gotify rejected that client token.</string>
     <string name="error_gotify_https">The Gotify server must use https.</string>
+    <string name="error_gotify_url">Enter a valid https:// Gotify address, without a user name or
+        query.</string>
     <string name="error_gotify_unreachable">The Gotify server is not reachable.</string>
     <string name="error_app_token">That is the firmware application token. Create a Gotify client
         token instead.</string>

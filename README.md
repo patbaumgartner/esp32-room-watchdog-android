@@ -115,7 +115,7 @@ Run the same primary gates used by CI:
 
 ```bash
 ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
-shellcheck scripts/*.sh
+find . -name '*.sh' -not -path './*/build/*' -exec shellcheck {} +
 ```
 
 The release APK produced by a source checkout is unsigned. Signing and

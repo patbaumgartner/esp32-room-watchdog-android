@@ -18,14 +18,16 @@ internal fun deviceBaseUrl(value: String): HttpUrl {
 
 /**
  * Audio comes from a second, synchronous server - an async chunked response could not keep up with
- * 48 kHz - so the stream keeps the API's host and scheme but rides on its own port. A port already
- * in the configured URL is left alone: that is how a reverse proxy in front of the device is
- * addressed.
+ * 48 kHz - so the stream keeps the API's host and scheme but rides on its own port. The port is
+ * whatever the device announced, so an implausible one falls back to the configured URL, as does a
+ * port already present in that URL: that is how a reverse proxy in front of the device is addressed.
  */
 internal fun deviceAudioUrl(value: String, audioPort: Int?): HttpUrl {
     val base = deviceBaseUrl(value)
     val builder = base.newBuilder().addPathSegment("audio.pcm")
-    if (audioPort != null && base.port == HttpUrl.defaultPort(base.scheme)) builder.port(audioPort)
+    if (audioPort != null && audioPort in 1..65535 && base.port == HttpUrl.defaultPort(base.scheme)) {
+        builder.port(audioPort)
+    }
     return builder.build()
 }
 

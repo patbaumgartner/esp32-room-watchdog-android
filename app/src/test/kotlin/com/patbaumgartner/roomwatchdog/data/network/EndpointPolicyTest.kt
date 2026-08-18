@@ -97,4 +97,15 @@ class EndpointPolicyTest {
         )
         assertEquals("http://192.168.1.10/ws", deviceSocketUrl("http://192.168.1.10").toString())
     }
+
+    @Test
+    fun `an implausible announced port leaves the configured URL alone`() {
+        listOf(null, 0, -1, 70_000).forEach { port ->
+            assertEquals(
+                "port $port must not reach okhttp",
+                "http://192.168.1.10/audio.pcm",
+                deviceAudioUrl("http://192.168.1.10", port).toString(),
+            )
+        }
+    }
 }
