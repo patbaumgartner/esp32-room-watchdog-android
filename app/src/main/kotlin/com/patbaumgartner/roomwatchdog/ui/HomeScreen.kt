@@ -37,20 +37,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material.icons.automirrored.outlined.VolumeOff
-import androidx.compose.material.icons.automirrored.outlined.VolumeUp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.FiberManualRecord
-import androidx.compose.material.icons.outlined.FilterAlt
-import androidx.compose.material.icons.outlined.FilterAltOff
-import androidx.compose.material.icons.outlined.GraphicEq
-import androidx.compose.material.icons.outlined.Headphones
-import androidx.compose.material.icons.outlined.MoreHoriz
-import androidx.compose.material.icons.outlined.PersonOutline
-import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Stop
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -145,22 +131,22 @@ internal fun HomeScreen(state: HomeState, viewModel: AppViewModel) {
             }
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
-                    Icon(Icons.Outlined.MoreHoriz, contentDescription = stringResource(R.string.menu_more))
+                    Icon(WatchdogIcons.MoreHoriz, contentDescription = stringResource(R.string.menu_more))
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.menu_calibrate)) },
-                        leadingIcon = { Icon(Icons.Outlined.Tune, contentDescription = null) },
+                        leadingIcon = { Icon(WatchdogIcons.Tune, contentDescription = null) },
                         onClick = { menuExpanded = false; viewModel.calibrate() },
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.menu_recordings)) },
-                        leadingIcon = { Icon(Icons.Outlined.PlayArrow, contentDescription = null) },
+                        leadingIcon = { Icon(WatchdogIcons.PlayArrow, contentDescription = null) },
                         onClick = { menuExpanded = false; viewModel.openRecordings() },
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.menu_settings)) },
-                        leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
+                        leadingIcon = { Icon(WatchdogIcons.Settings, contentDescription = null) },
                         onClick = { menuExpanded = false; viewModel.openSettings() },
                     )
                 }
@@ -231,9 +217,9 @@ internal fun HomeScreen(state: HomeState, viewModel: AppViewModel) {
                     CircleAction(
                         onClick = viewModel::toggleMuted,
                         icon = if (stream.muted) {
-                            Icons.AutoMirrored.Outlined.VolumeOff
+                            WatchdogIcons.VolumeOff
                         } else {
-                            Icons.AutoMirrored.Outlined.VolumeUp
+                            WatchdogIcons.VolumeUp
                         },
                         contentDescription = stringResource(
                             if (stream.muted) R.string.action_unmute else R.string.action_mute,
@@ -243,7 +229,7 @@ internal fun HomeScreen(state: HomeState, viewModel: AppViewModel) {
                     )
                     CircleAction(
                         onClick = viewModel::toggleNoiseFilter,
-                        icon = if (stream.noiseFiltered) Icons.Outlined.FilterAlt else Icons.Outlined.FilterAltOff,
+                        icon = if (stream.noiseFiltered) WatchdogIcons.FilterAlt else WatchdogIcons.FilterAltOff,
                         contentDescription = stringResource(
                             if (stream.noiseFiltered) {
                                 R.string.action_noise_filter_off
@@ -256,7 +242,7 @@ internal fun HomeScreen(state: HomeState, viewModel: AppViewModel) {
                     )
                     CircleAction(
                         onClick = if (recording) viewModel::stopRecording else viewModel::startRecording,
-                        icon = if (recording) Icons.Outlined.Stop else Icons.Outlined.FiberManualRecord,
+                        icon = if (recording) WatchdogIcons.Stop else WatchdogIcons.FiberManualRecord,
                         contentDescription = stringResource(
                             if (recording) R.string.cd_stop_recording else R.string.cd_record,
                         ),
@@ -265,7 +251,7 @@ internal fun HomeScreen(state: HomeState, viewModel: AppViewModel) {
                     )
                     CircleAction(
                         onClick = viewModel::stopListening,
-                        icon = Icons.Outlined.Stop,
+                        icon = WatchdogIcons.Stop,
                         contentDescription = stringResource(R.string.cd_stop),
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -288,14 +274,14 @@ private fun RoomSignalIndicators(presence: Boolean, sound: Boolean) {
             if (presence) {
                 SignalIndicator(
                     label = stringResource(R.string.signal_presence),
-                    icon = Icons.Outlined.PersonOutline,
+                    icon = WatchdogIcons.PersonOutline,
                     color = WatchdogTheme.accents.presence,
                 )
             }
             if (sound) {
                 SignalIndicator(
                     label = stringResource(R.string.signal_noise),
-                    icon = Icons.Outlined.GraphicEq,
+                    icon = WatchdogIcons.GraphicEq,
                     color = WatchdogTheme.accents.warning,
                 )
             }
@@ -440,7 +426,7 @@ private fun ListenControl(
                 )
             } else {
                 Icon(
-                    Icons.Outlined.Headphones,
+                    WatchdogIcons.Headphones,
                     contentDescription = stringResource(
                         if (live) R.string.cd_listening else R.string.cd_listen,
                     ),

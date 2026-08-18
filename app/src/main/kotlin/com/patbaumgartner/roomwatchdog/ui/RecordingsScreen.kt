@@ -25,12 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.MoreHoriz
-import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Share
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -204,27 +198,27 @@ private fun RecordingRow(
         }
         Box {
             IconButton(onClick = { menuExpanded = true }) {
-                Icon(Icons.Outlined.MoreHoriz, contentDescription = stringResource(R.string.recording_actions))
+                Icon(WatchdogIcons.MoreHoriz, contentDescription = stringResource(R.string.recording_actions))
             }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.action_play)) },
-                    leadingIcon = { Icon(Icons.Outlined.PlayArrow, contentDescription = null) },
+                    leadingIcon = { Icon(WatchdogIcons.PlayArrow, contentDescription = null) },
                     onClick = { menuExpanded = false; onPlay() },
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.action_share)) },
-                    leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null) },
+                    leadingIcon = { Icon(WatchdogIcons.Share, contentDescription = null) },
                     onClick = { menuExpanded = false; onShare() },
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.action_rename)) },
-                    leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
+                    leadingIcon = { Icon(WatchdogIcons.Edit, contentDescription = null) },
                     onClick = { menuExpanded = false; onRename() },
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.action_delete)) },
-                    leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
+                    leadingIcon = { Icon(WatchdogIcons.DeleteOutline, contentDescription = null) },
                     onClick = { menuExpanded = false; onDelete() },
                 )
             }
