@@ -6,9 +6,13 @@ argument-hint: 'optional: what changed, e.g. "audio port" or "telemetry fields"'
 
 # Firmware Contract Check
 
-The device's API has moved more than once — `/audio.pcm` has changed port in both directions —
-and the firmware flashed on the hardware is usually older than the firmware repo's docs. Three
-sources have to agree before a change is safe:
+Current firmware serves `/status`, `/calibrate` and `/ws` on port **80**, and `/audio.pcm` on
+port **81** only — port 80 answers 404 for it. That split is deliberate: audio needs a
+synchronous `WebServer`, whose header clashes with the async server's, so it lives in its own
+translation unit. Treat 81 as the contract.
+
+The port has still moved twice, and the flashed firmware is often older than the repo's docs, so
+three sources have to agree before a change is safe:
 
 1. **The firmware repo** — what the maintainer intends
 2. **The running device** — what is actually deployed
@@ -37,12 +41,16 @@ Reading the results:
 | `/ws -> 400`              | Endpoint exists, handshake refused — auth passed                    |
 | `/ws -> 404`              | Old firmware without the telemetry socket                           |
 | `/ws -> 401`              | Token rejected — check `watchdog.apiToken`, not the code            |
-| `:81/audio.pcm` streaming | Audio has its own port                                              |
-| `:80/audio.pcm` streaming | Audio shares the API port                                           |
+| `:81/audio.pcm` streaming | Expected: audio on its own port                                     |
+| `:80/audio.pcm` streaming | Pre-revert firmware — the app cannot stream from it; reflash        |
 | neither streaming         | Another client holds the single audio slot, or the app is listening |
 
-Stop any listening session first. The device accepts **one** audio client, and on firmware that
-serves audio from the API port, polling `/status` mid-stream kills the stream.
+A `:80` hit is not an alternative layout to support. Audio lived there twice, and the app cannot
+use either: the first version answered `POST` only, and the single-port version announced
+`audioPath` instead of `audioPort`, so the app falls back to 81 and finds nothing. The fix is to
+update the device, not to teach the app a second layout.
+
+Stop any listening session first — the device accepts **one** audio client.
 
 ### 2. Read the firmware repo
 

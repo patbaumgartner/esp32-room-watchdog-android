@@ -261,8 +261,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Fallback for when the telemetry socket is down: the REST snapshot keeps the room reading from
-     * going stale. It pauses during a session because firmware old enough to lack the socket also
-     * serves audio from the API port, and answering /status there drops the stream.
+     * going stale. Skipping it during a session is precautionary only - on current firmware audio
+     * has its own port and polling /status alongside it measured clean.
      */
     private fun startStatusPolling() {
         pollJob?.cancel()
