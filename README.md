@@ -16,8 +16,7 @@ The companion firmware lives in
 - Live room presence, distance, microphone level, and device connectivity,
   pushed over the device's WebSocket instead of polled
 - On-demand PCM audio listening with independent mute
-- Noise reduction that learns the room during the first seconds of a session,
-  plus echo cancellation so phone and sensor can share a desk
+- Noise reduction that learns the room during the first seconds of a session
 - Local AAC/M4A recording with playback, sharing, renaming, and deletion
 - Background notifications for presence and sound events, suppressed while the
   app is visible

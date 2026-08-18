@@ -10,7 +10,6 @@ No public release has been published yet.
 
 - Live telemetry over the device's `/ws` socket, with the REST poll kept as a fallback
 - Self-tuning noise reduction that learns the room in the first seconds of a session
-- Acoustic echo cancellation, so phone and device can sit side by side
 - Recording playback, sharing, renaming, and deletion
 - Mute and compact live-session controls
 - In-app presence and recent-noise indicators
@@ -37,6 +36,9 @@ No public release has been published yet.
   including when a second activity instance is started from a notification
 - Notifications no longer interrupt an active listening session, where the audio
   already tells the user what the alert would
+- Withdrew acoustic echo cancellation: on the real signal path its reference was
+  the playback of the capture itself, so it fed back and amplified a quiet room
+  by tens of decibels instead of cancelling anything
 - A listening session no longer stops after about a minute on a short network read
 - The Gotify client token is sent as a header instead of a URL query parameter,
   keeping it out of reverse-proxy access logs

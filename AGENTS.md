@@ -57,7 +57,7 @@ and `scripts/deploy-emulator.sh` build, install and launch.
 There are no instrumentation, Robolectric or Compose tests, and that is deliberate — it works
 only because the interesting logic has no Android imports. Preserve that split:
 
-- `audio/` DSP (`NoiseFilter`, `EchoCanceller`, `Fft`) is pure Kotlin. Only `PcmStreamSession`
+- `audio/` DSP (`NoiseFilter`, `Fft`) is pure Kotlin. Only `PcmStreamSession`
   touches `AudioTrack`/`AudioManager`.
 - `data/network/`, `data/model/`, `data/device/`, `data/gotify/` are framework-free and depend
   only on OkHttp and kotlinx.serialization.
@@ -65,6 +65,24 @@ only because the interesting logic has no Android imports. Preserve that split:
 Putting an `android.*` import into those packages silently makes the behaviour untestable.
 Validation runs before any I/O so clients can be tested against a real `OkHttpClient` with no
 server.
+
+## Test DSP in the loop the app actually runs
+
+An acoustic echo canceller shipped here and had to be withdrawn. Its unit tests passed at
+>12 dB of cancellation, because they fed it a far-end signal that was independent of the
+capture. The real session has no such signal: it plays back what it just captured and handed
+the canceller *its own output* as the reference, which closed a feedback loop. Measured on a
+real 12-second capture, the shipped chain amplified a −40 dBFS room to −2.4 dBFS.
+
+So when changing anything in `audio/`, drive it the way `PcmStreamSession` does — same chunk
+sizes, output fed back where the app feeds it back — and measure against a real capture:
+
+```bash
+curl -s --max-time 12 -H "Authorization: Bearer $TOKEN" http://<device>:81/audio.pcm -o /tmp/room.pcm
+```
+
+Then print level per second for input versus output. A stage that raises the level, or that
+moves it more than it claims to, is broken however green the unit tests are.
 
 ## Conventions
 

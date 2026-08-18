@@ -71,7 +71,6 @@ class PcmStreamSession(
 
     private val recorder = M4aRecorder(recordingStore.directory)
     private val noiseFilter = NoiseFilter(DeviceClient.SAMPLE_RATE)
-    private val echoCanceller = EchoCanceller(DeviceClient.SAMPLE_RATE)
 
     @Volatile
     private var recordingRequested = false
@@ -152,7 +151,6 @@ class PcmStreamSession(
                 track = buildTrack().apply { play() }
                 activeTrack = track
                 noiseFilter.reset()
-                echoCanceller.reset()
                 requestFocus()
                 AppVisibility.onListeningStarted()
                 _status.update {
@@ -169,13 +167,8 @@ class PcmStreamSession(
                     val read = source.read(buffer)
                     if (read <= 0) break
 
-                    if (noiseFilterEnabled) {
-                        echoCanceller.process(buffer, read)
-                        noiseFilter.process(buffer, read)
-                    }
+                    if (noiseFilterEnabled) noiseFilter.process(buffer, read)
                     track.write(buffer, 0, read)
-                    // The samples just handed to the speaker are what comes back as echo.
-                    echoCanceller.playback(buffer, read, silent = _status.value.muted)
                     _level.value = levelOf(buffer, read)
 
                     val learning = noiseFilterEnabled && noiseFilter.isLearning

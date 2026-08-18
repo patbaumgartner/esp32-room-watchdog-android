@@ -17,11 +17,8 @@ small; dependencies flow from UI and services toward data and platform adapters.
   Gotify requires HTTPS; device cleartext is restricted to local/private hosts.
 - `audio/PcmStreamSession` owns the ESP32 audio connection and fans PCM frames
   out to playback, metering, and optional recording.
-- `audio/EchoCanceller` subtracts the phone's own playback from the captured
-  frames, so the two devices can sit on the same desk without howling.
-- `audio/NoiseFilter` then cleans what is left (DC block, learnt spectral noise
-  profile, low-pass); both stages follow the one filter switch shown while
-  listening.
+- `audio/NoiseFilter` cleans the captured frames (DC block, learnt spectral noise
+  profile, low-pass) and follows the filter switch shown while listening.
 - `recordings/` encodes AAC/M4A into app-private storage and persists small
   recording metadata.
 - `data/settings/` stores ordinary configuration in private preferences and
@@ -44,9 +41,9 @@ ESP32 -> Gotify -> AlertConnectionService -> WatchdogEvent parser
 
 ESP32 /ws -> TelemetryStream -> AppViewModel (live room state, sound events)
 
-ESP32 /audio.pcm -> PcmStreamSession -> EchoCanceller -> NoiseFilter -> AudioTrack
-                                                                    |-> level meter
-                                                                    `-> M4aRecorder -> RecordingStore
+ESP32 /audio.pcm -> PcmStreamSession -> NoiseFilter -> AudioTrack
+                                                    |-> level meter
+                                                    `-> M4aRecorder -> RecordingStore
 ```
 
 Everything the device answers on its API port - `/status`, `/calibrate` and the
@@ -78,6 +75,6 @@ as room-presence alerts.
 ## Tests
 
 JVM unit tests cover endpoint trust rules, Gotify event parsing, and the audio
-chain (noise learning, echo convergence). Android lint validates resources,
+chain (noise learning, suppression state). Android lint validates resources,
 manifest declarations, API levels, and Compose usage. Both debug and minified
 release variants are assembled in CI to exercise resource shrinking and R8.
