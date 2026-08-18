@@ -43,6 +43,7 @@ class EndpointPolicyTest {
             "http://fc-barcelona.example.com",
             "http://fdn.example.com",
             "http://8.8.8.8",
+            "http://1.2.3.999",
         ).forEach { value ->
             val error = assertThrows("$value must not pass as private", EndpointValidationException::class.java) {
                 deviceBaseUrl(value)

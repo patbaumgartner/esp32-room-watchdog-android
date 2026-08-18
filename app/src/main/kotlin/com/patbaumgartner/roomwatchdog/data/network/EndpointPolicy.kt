@@ -52,7 +52,9 @@ private fun parseBaseUrl(value: String): HttpUrl {
 private fun String.isPrivateNetworkHost(): Boolean {
     val host = lowercase()
     val literal = host.asIpLiteral()
-    return literal?.isPrivateAddress() ?: host.isPrivateNetworkName()
+    if (literal != null) return literal.isPrivateAddress()
+    // A colon can only be an IPv6 literal, and one this cannot read is not one it should trust.
+    return !host.contains(':') && host.isPrivateNetworkName()
 }
 
 /**
