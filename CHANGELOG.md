@@ -33,6 +33,10 @@ No public release has been published yet.
   cannot exhaust memory
 - A listening session now ends when the device stops sending instead of staying
   live and silent forever
+- An implausible audio port announced by the device no longer fails the session
+  with a network error; the configured address is used instead
+- A mistyped Gotify address is reported as a bad address rather than as an
+  unreachable server
 - Corrected the Android application ID and Kotlin namespace to
   `com.patbaumgartner.roomwatchdog`
 - Stopping listening now finalizes an active recording
@@ -57,3 +61,10 @@ No public release has been published yet.
 - Recordings orphaned by a killed process are removed instead of accumulating
 - Android 17 now requests local-network access before connecting to the ESP32
 - Gotify background streaming no longer fails before opening its WebSocket
+
+### Removed
+
+- The unused `gotify_app_id` preference and the message filter behind it. Nothing
+  could set it, so every install already ran with it disabled; unrelated Gotify
+  messages are still kept out by the event-type check. The stale key is ignored,
+  so no action is needed on upgrade.

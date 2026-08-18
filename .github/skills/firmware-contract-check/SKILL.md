@@ -68,13 +68,15 @@ Check each of these:
 - **Audio port and path** — `DeviceClient.DEFAULT_AUDIO_PORT`, `deviceAudioUrl()` in
   `EndpointPolicy`, and the `hello` frame's `audioPort`. The socket announces the port; follow it
   rather than hardcoding, and keep the constant as the fallback for a device that never sends one.
+  A port outside 1-65535 is treated as not sent at all.
 - **Hello frame fields** — `TelemetryFrame.Hello` against `sendHello()` in `ws.cpp`.
 - **Telemetry and status fields** — `DeviceStatus` against `telemetryJson()` in `ws.cpp` and the
   `/status` handler in `api.cpp`.
 - **Event kinds** — `TelemetryFrame.Event.Kind` against the firmware's event strings.
 
-`ignoreUnknownKeys = true` means a field the firmware adds is silently dropped, so a missing
-property never fails a test — only this comparison catches it.
+`TelemetryFrameTest` pins the frames as the firmware sends them today, so a **renamed** field
+fails a test. `ignoreUnknownKeys = true` still means a field the firmware **adds** is dropped in
+silence — only this comparison catches that one.
 
 ### 4. When the device is older than the docs
 

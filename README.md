@@ -95,9 +95,11 @@ never production secrets. Release builds always leave the fields empty.
 
 - Gotify must use HTTPS. The client token is rejected before any connection when
   the URL is not encrypted.
-- The ESP32 can use HTTPS anywhere. Plain HTTP is limited to loopback,
-  private/link-local IP ranges, and local hostnames such as `.local`, `.lan`,
-  and `.home.arpa`.
+- The ESP32 can use HTTPS anywhere. Plain HTTP is limited to hosts that parse as
+  loopback, link-local, RFC 1918 or IPv6 unique-local addresses, and to names in
+  a local zone: a single-label hostname, `.local`, `.lan`, or `.home.arpa`.
+  Addresses are classified by parsing them, not by how they are spelled, so a
+  public host is never exempted for merely resembling a private one.
 - ESP32 HTTPS uses Android's system certificate authorities and standard
   hostname verification. Self-signed, expired, or hostname-mismatched
   certificates are rejected.
