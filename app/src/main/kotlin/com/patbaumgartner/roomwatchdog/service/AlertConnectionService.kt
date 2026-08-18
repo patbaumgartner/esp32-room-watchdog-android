@@ -144,8 +144,8 @@ class AlertConnectionService : Service() {
         }
         if (!app.container.events.record(event)) return
         app.container.settings.rememberMessageId(event.messageId)
-        if (com.patbaumgartner.roomwatchdog.AppVisibility.isForeground) {
-            // The live screen already shows this; don't stack a notification on top of it.
+        if (com.patbaumgartner.roomwatchdog.AppVisibility.isAttendingRoom) {
+            // The live screen, or the audio already playing, says this better than a banner would.
             app.container.notifier.cancelEventAlerts()
             return
         }

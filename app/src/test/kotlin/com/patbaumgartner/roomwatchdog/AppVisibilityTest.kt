@@ -10,6 +10,7 @@ class AppVisibilityTest {
     @After
     fun drain() {
         repeat(8) { AppVisibility.onLeaveForeground() }
+        AppVisibility.onListeningStopped()
     }
 
     @Test
@@ -42,5 +43,26 @@ class AppVisibilityTest {
         AppVisibility.onEnterForeground()
 
         assertTrue(AppVisibility.isForeground)
+    }
+
+    /** Listening usually happens with the screen off, and the audio says more than a banner would. */
+    @Test
+    fun `a listening session counts as attending the room`() {
+        AppVisibility.onListeningStarted()
+
+        assertFalse("the UI is not on screen", AppVisibility.isForeground)
+        assertTrue("but the room is audible", AppVisibility.isAttendingRoom)
+
+        AppVisibility.onListeningStopped()
+        assertFalse(AppVisibility.isAttendingRoom)
+    }
+
+    @Test
+    fun `closing the screen mid-session keeps the session attending`() {
+        AppVisibility.onEnterForeground()
+        AppVisibility.onListeningStarted()
+        AppVisibility.onLeaveForeground()
+
+        assertTrue(AppVisibility.isAttendingRoom)
     }
 }

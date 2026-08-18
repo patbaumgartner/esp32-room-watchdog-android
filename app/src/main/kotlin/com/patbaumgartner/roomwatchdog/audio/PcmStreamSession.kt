@@ -7,6 +7,7 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
 import androidx.core.content.getSystemService
+import com.patbaumgartner.roomwatchdog.AppVisibility
 import com.patbaumgartner.roomwatchdog.data.device.DeviceClient
 import com.patbaumgartner.roomwatchdog.recordings.M4aRecorder
 import com.patbaumgartner.roomwatchdog.recordings.RecordingStore
@@ -153,6 +154,7 @@ class PcmStreamSession(
                 noiseFilter.reset()
                 echoCanceller.reset()
                 requestFocus()
+                AppVisibility.onListeningStarted()
                 _status.update {
                     it.copy(
                         phase = StreamPhase.Live,
@@ -223,6 +225,7 @@ class PcmStreamSession(
             track?.runCatching { stop() }
             track?.runCatching { release() }
             activeTrack = null
+            AppVisibility.onListeningStopped()
             abandonFocus()
             call = null
             recordingRequested = false

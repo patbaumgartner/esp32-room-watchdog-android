@@ -63,7 +63,7 @@ class AlertNotifier(private val context: Context) {
             .build()
 
     fun notifyEvent(event: WatchdogEvent, roomName: String) {
-        if (AppVisibility.isForeground) {
+        if (AppVisibility.isAttendingRoom) {
             cancelEventAlerts()
             return
         }

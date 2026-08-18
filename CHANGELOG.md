@@ -35,6 +35,8 @@ No public release has been published yet.
 - Recorder shutdown is bounded and cleans incomplete output
 - Presence and sound event notifications are suppressed while the app is visible,
   including when a second activity instance is started from a notification
+- Notifications no longer interrupt an active listening session, where the audio
+  already tells the user what the alert would
 - A listening session no longer stops after about a minute on a short network read
 - The Gotify client token is sent as a header instead of a URL query parameter,
   keeping it out of reverse-proxy access logs
