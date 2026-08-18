@@ -11,6 +11,14 @@ presence and sound alerts from your self-hosted Gotify server.
 The companion firmware lives in
 [esp32-room-watchdog](https://github.com/patbaumgartner/esp32-room-watchdog).
 
+| The room, live | Listening to it |
+| :---: | :---: |
+| ![Home screen reading "Someone is here, about 0.8 m away" with a "Person nearby" chip above a waveform](docs/images/home.png) | ![The same screen listening, with mute, noise-filter, record and stop controls along the bottom](docs/images/listening.png) |
+
+Presence, distance and the microphone level arrive over the device's WebSocket.
+Audio only ever streams while a session is open, and only to the phone in your
+hand.
+
 ## Features
 
 - Live room presence, distance, microphone level, and device connectivity,
