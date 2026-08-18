@@ -1,5 +1,7 @@
 package com.patbaumgartner.roomwatchdog.data.network
 
+import java.net.Inet6Address
+import java.net.InetAddress
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -47,19 +49,28 @@ private fun parseBaseUrl(value: String): HttpUrl {
 
 private fun String.isPrivateNetworkHost(): Boolean {
     val host = lowercase()
-    if (host == "localhost" || host == "::1" || !host.contains('.')) return true
-    if (host.endsWith(".local") || host.endsWith(".lan") || host.endsWith(".home.arpa")) return true
-    if (host.startsWith("fc") || host.startsWith("fd") ||
-        host.startsWith("fe8") || host.startsWith("fe9") ||
-        host.startsWith("fea") || host.startsWith("feb")
-    ) {
-        return true
-    }
-
-    val octets = host.split('.').map { it.toIntOrNull() ?: return false }
-    if (octets.size != 4 || octets.any { it !in 0..255 }) return false
-    return octets[0] == 10 || octets[0] == 127 ||
-            (octets[0] == 169 && octets[1] == 254) ||
-            (octets[0] == 172 && octets[1] in 16..31) ||
-            (octets[0] == 192 && octets[1] == 168)
+    val literal = host.asIpLiteral()
+    return literal?.isPrivateAddress() ?: host.isPrivateNetworkName()
 }
+
+/**
+ * Only IP literals are resolved, so this never leaves the process. Prefix matching on the raw text
+ * cannot do the job: `feature.example.com` shares its first three characters with `fe80::/10`.
+ */
+private fun String.asIpLiteral(): InetAddress? {
+    val looksNumeric = contains(':') ||
+        split('.').let { parts -> parts.size == 4 && parts.all { it.toIntOrNull() in 0..255 } }
+    if (!looksNumeric) return null
+    return runCatching { InetAddress.getByName(this) }.getOrNull()
+}
+
+private fun InetAddress.isPrivateAddress(): Boolean =
+    isLoopbackAddress || isLinkLocalAddress || isSiteLocalAddress || isUniqueLocalIpv6()
+
+/** fc00::/7, the IPv6 counterpart of the RFC 1918 ranges; the JDK has no predicate for it. */
+private fun InetAddress.isUniqueLocalIpv6(): Boolean =
+    this is Inet6Address && (address[0].toInt() and 0xFE) == 0xFC
+
+/** A name with no dot is a LAN hostname; the suffixes are the reserved local-network zones. */
+private fun String.isPrivateNetworkName(): Boolean =
+    !contains('.') || endsWith(".local") || endsWith(".lan") || endsWith(".home.arpa")

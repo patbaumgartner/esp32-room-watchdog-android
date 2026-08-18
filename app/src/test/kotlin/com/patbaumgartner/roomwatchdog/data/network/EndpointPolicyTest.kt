@@ -10,8 +10,45 @@ class EndpointPolicyTest {
     fun `device permits encrypted public and cleartext private endpoints`() {
         assertEquals("https://watchdog.example.com/", deviceBaseUrl("https://watchdog.example.com").toString())
         assertEquals("http://192.168.1.10/", deviceBaseUrl("http://192.168.1.10").toString())
+        assertEquals("http://10.0.0.5/", deviceBaseUrl("http://10.0.0.5").toString())
+        assertEquals("http://172.20.0.5/", deviceBaseUrl("http://172.20.0.5").toString())
+        assertEquals("http://127.0.0.1/", deviceBaseUrl("http://127.0.0.1").toString())
+        assertEquals("http://169.254.10.1/", deviceBaseUrl("http://169.254.10.1").toString())
         assertEquals("http://sensor.local/", deviceBaseUrl("http://sensor.local").toString())
         assertEquals("http://room-watchdog/", deviceBaseUrl("http://room-watchdog").toString())
+    }
+
+    @Test
+    fun `device permits cleartext to loopback and local IPv6 literals`() {
+        listOf(
+            "http://[::1]",
+            "http://[fd12:3456:789a::1]",
+            "http://[fe80::1]",
+        ).forEach { assertEquals(it, deviceBaseUrl(it).toString().trimEnd('/')) }
+    }
+
+    @Test
+    fun `device rejects cleartext to a public IPv6 literal`() {
+        val error = assertThrows(EndpointValidationException::class.java) {
+            deviceBaseUrl("http://[2001:db8::1]")
+        }
+
+        assertEquals(EndpointIssue.Insecure, error.issue)
+    }
+
+    @Test
+    fun `a public name that merely starts like a private range is still cleartext-blocked`() {
+        listOf(
+            "http://feature.example.com",
+            "http://fc-barcelona.example.com",
+            "http://fdn.example.com",
+            "http://8.8.8.8",
+        ).forEach { value ->
+            val error = assertThrows("$value must not pass as private", EndpointValidationException::class.java) {
+                deviceBaseUrl(value)
+            }
+            assertEquals(EndpointIssue.Insecure, error.issue)
+        }
     }
 
     @Test
