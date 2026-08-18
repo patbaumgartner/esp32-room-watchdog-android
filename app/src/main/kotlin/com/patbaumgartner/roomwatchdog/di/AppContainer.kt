@@ -35,10 +35,20 @@ class AppContainer(context: Context) {
         .callTimeout(0, TimeUnit.MILLISECONDS)
         .build()
 
+    /**
+     * Websockets prove they are alive with pings; the audio stream is a plain response body, so its
+     * liveness bound is the read itself. At 48 kHz bytes arrive every few milliseconds, and a socket
+     * that has produced none for this long is a dead device rather than a slow one. The overall call
+     * stays unbounded - a session may legitimately run for hours.
+     */
+    private val audioHttpClient = streamingHttpClient.newBuilder()
+        .readTimeout(AUDIO_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
+
     val gotifyClient = GotifyClient(apiHttpClient)
     val deviceClient = DeviceClient(apiHttpClient)
 
-    val streamSession = PcmStreamSession(context, streamingHttpClient, deviceClient, recordings)
+    val streamSession = PcmStreamSession(context, audioHttpClient, deviceClient, recordings)
 
     fun gotifyStream(
         baseUrl: String,
@@ -70,4 +80,8 @@ class AppContainer(context: Context) {
         onFrame = onFrame,
         onClosed = onClosed,
     )
+
+    private companion object {
+        const val AUDIO_READ_TIMEOUT_SECONDS = 15L
+    }
 }

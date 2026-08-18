@@ -56,24 +56,12 @@ class DeviceClient(private val http: OkHttpClient) {
                 .get()
                 .build()
             http.newCall(request).execute().use { response ->
-                val body = response.body.string()
                 if (response.code == 401 || response.code == 403) throw DeviceException(DeviceException.Kind.Auth)
                 if (!response.isSuccessful) throw DeviceException(DeviceException.Kind.Unknown)
-                json.decodeFromString<DeviceStatus>(body)
+                // A snapshot of the sensors is a few hundred bytes; anything larger is not this device.
+                json.decodeFromString<DeviceStatus>(response.peekBody(MAX_STATUS_BYTES).string())
             }
-        }.recoverCatching { error ->
-            throw when (error) {
-                is DeviceException -> error
-                is EndpointValidationException -> DeviceException(
-                    if (error.issue == EndpointIssue.Insecure) DeviceException.Kind.Insecure
-                    else DeviceException.Kind.InvalidUrl,
-                    error,
-                )
-
-                is IOException -> DeviceException(DeviceException.Kind.Unreachable, error)
-                else -> DeviceException(DeviceException.Kind.Unknown, error)
-            }
-        }
+        }.recoverCatching { throw asDeviceException(it) }
     }
 
     /** Asks the firmware to re-baseline the radar. The device answers 202 and calibrates asynchronously. */
@@ -90,19 +78,19 @@ class DeviceClient(private val http: OkHttpClient) {
                 if (response.code == 409) throw DeviceException(DeviceException.Kind.Busy)
                 if (!response.isSuccessful) throw DeviceException(DeviceException.Kind.Unknown)
             }
-        }.recoverCatching { error ->
-            throw when (error) {
-                is DeviceException -> error
-                is EndpointValidationException -> DeviceException(
-                    if (error.issue == EndpointIssue.Insecure) DeviceException.Kind.Insecure
-                    else DeviceException.Kind.InvalidUrl,
-                    error,
-                )
+        }.recoverCatching { throw asDeviceException(it) }
+    }
 
-                is IOException -> DeviceException(DeviceException.Kind.Unreachable, error)
-                else -> DeviceException(DeviceException.Kind.Unknown, error)
-            }
-        }
+    private fun asDeviceException(error: Throwable): DeviceException = when (error) {
+        is DeviceException -> error
+        is EndpointValidationException -> DeviceException(
+            if (error.issue == EndpointIssue.Insecure) DeviceException.Kind.Insecure
+            else DeviceException.Kind.InvalidUrl,
+            error,
+        )
+
+        is IOException -> DeviceException(DeviceException.Kind.Unreachable, error)
+        else -> DeviceException(DeviceException.Kind.Unknown, error)
     }
 
     fun audioRequest(baseUrl: String, apiToken: String, audioPort: Int? = DEFAULT_AUDIO_PORT): Request =
@@ -123,5 +111,7 @@ class DeviceClient(private val http: OkHttpClient) {
 
         /** The firmware's audio server; the socket's hello frame announces the live value. */
         const val DEFAULT_AUDIO_PORT = 81
+
+        private const val MAX_STATUS_BYTES = 64L * 1024
     }
 }

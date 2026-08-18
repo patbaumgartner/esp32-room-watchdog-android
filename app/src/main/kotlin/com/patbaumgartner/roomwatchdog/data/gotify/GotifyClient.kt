@@ -7,12 +7,9 @@ import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import okhttp3.Credentials
 import okhttp3.HttpUrl
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 
 class GotifyException(val kind: Kind, cause: Throwable? = null) :
     Exception(kind.name, cause) {
@@ -24,37 +21,10 @@ class GotifyClient(private val http: OkHttpClient) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun probe(baseUrl: String): Result<Unit> = call<Unit>(baseUrl) { base ->
-        request(base, "version").build().readText()
-    }
-
-    /** Exchanges username/password for a long-lived client token; the password is never stored. */
-    suspend fun createClientToken(
-        baseUrl: String,
-        username: String,
-        password: String,
-        clientName: String,
-    ): Result<String> = call(baseUrl) { base ->
-        val body = json.encodeToString(mapOf("name" to clientName))
-            .toRequestBody("application/json".toMediaType())
-        val text = request(base, "client")
-            .header("Authorization", Credentials.basic(username, password))
-            .post(body)
-            .build()
-            .readText()
-        json.decodeFromString<CreatedClient>(text).token
-    }
-
     suspend fun currentUser(baseUrl: String, clientToken: String): Result<GotifyUser> =
         call(baseUrl, clientToken) { base ->
             val text = request(base, "current/user").clientToken(clientToken).build().readText()
             json.decodeFromString<GotifyUser>(text)
-        }
-
-    suspend fun applications(baseUrl: String, clientToken: String): Result<List<GotifyApplication>> =
-        call(baseUrl, clientToken) { base ->
-            val text = request(base, "application").clientToken(clientToken).build().readText()
-            json.decodeFromString<List<GotifyApplication>>(text)
         }
 
     suspend fun messagesSince(
@@ -85,7 +55,6 @@ class GotifyClient(private val http: OkHttpClient) {
 
     private fun Request.readText(): String {
         http.newCall(this).execute().use { response ->
-            val body = response.body.string()
             if (!response.isSuccessful) {
                 throw GotifyException(
                     if (response.code == 401 || response.code == 403) {
@@ -95,7 +64,8 @@ class GotifyClient(private val http: OkHttpClient) {
                     },
                 )
             }
-            return body
+            // The largest expected reply is a page of clipped messages; refuse to buffer more.
+            return response.peekBody(MAX_BODY_BYTES).string()
         }
     }
 
@@ -105,9 +75,7 @@ class GotifyClient(private val http: OkHttpClient) {
         block: (HttpUrl) -> T,
     ): Result<T> = withContext(Dispatchers.IO) {
         if (clientToken != null && clientToken.startsWith(APPLICATION_TOKEN_PREFIX)) {
-                return@withContext Result.failure(
-                    GotifyException(GotifyException.Kind.ApplicationToken),
-                )
+            return@withContext Result.failure(GotifyException(GotifyException.Kind.ApplicationToken))
         }
         runCatching { block(gotifyBaseUrl(baseUrl)) }.recoverCatching { error ->
             throw when (error) {
@@ -126,5 +94,6 @@ class GotifyClient(private val http: OkHttpClient) {
     companion object {
         const val APPLICATION_TOKEN_PREFIX = "gtfya."
         private const val MAX_MESSAGES = 200
+        private const val MAX_BODY_BYTES = 1L * 1024 * 1024
     }
 }
