@@ -36,8 +36,11 @@ jobs:
         with:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
-      - name: Validate shell scripts
-        run: find . -name '*.sh' -not -path './*/build/*' -exec shellcheck {} +
+      - name: Validate YAML and shell scripts
+        run: |
+          pipx install yamllint
+          yamllint .
+          find . -name '*.sh' -not -path './*/build/*' -exec shellcheck {} +
 
       - name: Test, lint, and package
         run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug assembleRelease

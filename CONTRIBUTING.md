@@ -37,6 +37,7 @@ Use Conventional Commit subjects, for example
 
 ```bash
 ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
+yamllint .
 find . -name '*.sh' -not -path './*/build/*' -exec shellcheck {} +
 git diff --check
 ```

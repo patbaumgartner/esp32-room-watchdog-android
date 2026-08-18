@@ -115,6 +115,7 @@ Run the same primary gates used by CI:
 
 ```bash
 ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
+yamllint .
 find . -name '*.sh' -not -path './*/build/*' -exec shellcheck {} +
 ```
 
