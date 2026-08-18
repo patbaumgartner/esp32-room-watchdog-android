@@ -1,6 +1,6 @@
 ---
 name: firmware-contract-check
-description: 'Check this app against the ESP32 firmware it talks to. Use when changing DeviceClient, TelemetryStream, TelemetryFrame, PcmStreamSession or EndpointPolicy, when audio or telemetry stops working, when the firmware repo has been updated, or before assuming which port serves /audio.pcm. Probes the live device, reads the firmware repo docs, and reports where the app disagrees with reality.'
+description: "Check this app against the ESP32 firmware it talks to. Use when changing DeviceClient, TelemetryStream, TelemetryFrame, PcmStreamSession or EndpointPolicy, when audio or telemetry stops working, when the firmware repo has been updated, or before assuming which port serves /audio.pcm. Probes the live device, reads the firmware repo docs, and reports where the app disagrees with reality."
 argument-hint: 'optional: what changed, e.g. "audio port" or "telemetry fields"'
 ---
 
@@ -31,15 +31,15 @@ behaviour next to what the app hardcodes, and never echoes the token.
 
 Reading the results:
 
-| Result | Meaning |
-|---|---|
-| `/ws -> 101` | Socket upgraded; telemetry is available |
-| `/ws -> 400` | Endpoint exists, handshake refused — auth passed |
-| `/ws -> 404` | Old firmware without the telemetry socket |
-| `/ws -> 401` | Token rejected — check `watchdog.apiToken`, not the code |
-| `:81/audio.pcm` streaming | Audio has its own port |
-| `:80/audio.pcm` streaming | Audio shares the API port |
-| neither streaming | Another client holds the single audio slot, or the app is listening |
+| Result                    | Meaning                                                             |
+| ------------------------- | ------------------------------------------------------------------- |
+| `/ws -> 101`              | Socket upgraded; telemetry is available                             |
+| `/ws -> 400`              | Endpoint exists, handshake refused — auth passed                    |
+| `/ws -> 404`              | Old firmware without the telemetry socket                           |
+| `/ws -> 401`              | Token rejected — check `watchdog.apiToken`, not the code            |
+| `:81/audio.pcm` streaming | Audio has its own port                                              |
+| `:80/audio.pcm` streaming | Audio shares the API port                                           |
+| neither streaming         | Another client holds the single audio slot, or the app is listening |
 
 Stop any listening session first. The device accepts **one** audio client, and on firmware that
 serves audio from the API port, polling `/status` mid-stream kills the stream.
@@ -83,7 +83,7 @@ silence — only this comparison catches that one.
 Target the documented contract and keep the app working against what is deployed:
 
 - Prefer values announced at runtime (the `hello` frame) over constants.
-- Where a fallback is needed, make it explicit and comment *why*, as
+- Where a fallback is needed, make it explicit and comment _why_, as
   `AppViewModel.startStatusPolling` does for firmware that shares one port.
 - Say plainly in the report which firmware version was verified against.
 
