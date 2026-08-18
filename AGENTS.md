@@ -5,6 +5,14 @@ for the product, [docs/architecture.md](docs/architecture.md) for the design, an
 [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow. This file only covers what
 those don't, or what is easy to get wrong.
 
+Two workflows are scripted because skipping them is what has broken this app before:
+`/firmware-contract-check` before trusting anything about the device's API, and
+`/verify-on-device` before claiming a change works.
+
+This guide describes conventions as they are today. If the manual DI, the absent linter or the
+single-ViewModel design ever change, correct this file in the same commit — a stale guide here
+misleads rather than merely ages.
+
 ## Build and validate
 
 Gradle needs the SDK location from `ANDROID_HOME` or `sdk.dir` in `local.properties`, or it
@@ -91,20 +99,19 @@ server.
 ## The device contract changes — verify it
 
 The firmware in [esp32-room-watchdog](https://github.com/patbaumgartner/esp32-room-watchdog)
-has moved `/audio.pcm` between ports more than once. Before changing anything that talks to
-the device, read that repo's `README.md` and `docs/architecture.md`, then confirm against the
-running device — the deployed firmware is often older than the docs. The `/ws` hello frame
-announces the audio port; follow it rather than hardcoding.
+has moved `/audio.pcm` between ports more than once, and the deployed firmware is usually older
+than that repo's docs. Run `/firmware-contract-check` before changing anything that talks to the
+device — it probes the running hardware and diffs it against what the app assumes.
 
-Constraints that bite: the device accepts one audio client and one telemetry client, and
-firmware that still serves audio from the API port drops the stream if `/status` is polled
-during a session.
+Constraints that shape the code: the device accepts one audio client and one telemetry client,
+the `/ws` hello frame announces the audio port (follow it rather than hardcoding), and firmware
+that still serves audio from the API port drops the stream if `/status` is polled during a
+session.
 
 ## Verify on hardware
 
-Compiling is not evidence. Audio, notification and lifecycle behaviour are expected to be
-checked on a real device (`scripts/deploy-device.sh`), and behavioural claims should cite what
-was observed — a measurement, a logcat line, or a `dumpsys` reading.
+Compiling is not evidence. Run `/verify-on-device` for audio, notification and lifecycle
+changes, and cite what was observed — a measurement, a `dumpsys` reading, a screenshot.
 
 ## Observing behaviour without logging
 
