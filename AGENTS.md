@@ -21,7 +21,8 @@ stops with `SDK location not found`. Builds on JDK 17, same as CI.
 ```bash
 export ANDROID_HOME="$HOME/Android/Sdk"
 ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
-shellcheck scripts/*.sh
+yamllint .
+find . -name '*.sh' -not -path './*/build/*' -exec shellcheck {} +
 ```
 
 That is the full CI gate — run it before claiming a change is done. `scripts/deploy-device.sh`
@@ -43,9 +44,11 @@ and `scripts/deploy-emulator.sh` build, install and launch.
 - Manual DI: one [AppContainer](app/src/main/kotlin/com/patbaumgartner/roomwatchdog/di/AppContainer.kt)
   built in `RoomWatchdogApp.onCreate()`, reached via `(application as RoomWatchdogApp).container`.
   No Hilt, no Koin. No Room, no DataStore — `SharedPreferences` plus kotlinx.serialization JSON.
-- Two OkHttp clients from one pool: `apiHttpClient` (bounded timeouts) and `streamingHttpClient`
-  (no read/call timeout, for the PCM stream and both WebSockets). Anything using the streaming
-  client needs its own liveness bound — an unresponsive server will otherwise hang forever.
+- Three OkHttp clients from one pool: `apiHttpClient` (bounded timeouts), `streamingHttpClient`
+  for both WebSockets, and `audioHttpClient` for the PCM stream. The streaming clients drop the
+  call timeout because a session may run for hours, so each needs its own liveness bound: the
+  sockets ping, the audio client bounds every individual read. Anything else added on top of
+  them needs one too, or an unresponsive server hangs it forever.
 - State is `MutableStateFlow` + `asStateFlow()`, backing field `_name`. Mutate with
   `update { }`, never `value = value.copy(...)`: the UI thread and background loops write the
   same flows. Repositories that write from several threads are `@Synchronized`.
@@ -107,7 +110,11 @@ moves it more than it claims to, is broken however green the unit tests are.
 ## Security invariants
 
 - `data/network/EndpointPolicy` is the single trust boundary: Gotify must be HTTPS, device
-  cleartext only on private/loopback/`.local` hosts. Route every new URL through it.
+  cleartext only on hosts that parse as loopback/link-local/private addresses or that are
+  named in a local zone. Route every new URL through it, and classify IP literals as addresses
+  rather than by their spelling — `feature.example.com` once passed as `fe80::/10`.
+- Anything the device or the Gotify server sends is untrusted input: bound what is buffered
+  from a response, and range-check values such as the announced audio port before use.
 - Credentials go in headers, never in URLs or query strings, and never into logs or state.
 - Tokens are stored through `SecretStore` (Keystore AES/GCM), never plain preferences.
 - Never commit `local.properties`, tokens, APKs or recordings.
