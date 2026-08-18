@@ -140,13 +140,13 @@ class PcmStreamSession(
                 .also { call = it }
                 .execute()
 
-            response.use {
+            response.use { open ->
                 when {
-                    it.code == 401 || it.code == 403 -> throw StreamFailure(StreamError.Auth)
-                    it.code == 409 -> throw StreamFailure(StreamError.Busy)
-                    !it.isSuccessful -> throw StreamFailure(StreamError.Unknown)
+                    open.code == 401 || open.code == 403 -> throw StreamFailure(StreamError.Auth)
+                    open.code == 409 -> throw StreamFailure(StreamError.Busy)
+                    !open.isSuccessful -> throw StreamFailure(StreamError.Unknown)
                 }
-                val source = it.body.byteStream()
+                val source = open.body.byteStream()
 
                 track = buildTrack().apply { play() }
                 activeTrack = track

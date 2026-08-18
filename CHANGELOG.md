@@ -26,6 +26,13 @@ No public release has been published yet.
 
 ### Fixed
 
+- Cleartext HTTP is no longer accepted for public hosts whose name merely starts
+  like a private IPv6 range, such as `feature.example.com`, or for public IPv6
+  literals, which previously passed the "a host with no dot is a LAN name" rule
+- Device and Gotify responses are read with a size limit, so an oversized reply
+  cannot exhaust memory
+- A listening session now ends when the device stops sending instead of staying
+  live and silent forever
 - Corrected the Android application ID and Kotlin namespace to
   `com.patbaumgartner.roomwatchdog`
 - Stopping listening now finalizes an active recording

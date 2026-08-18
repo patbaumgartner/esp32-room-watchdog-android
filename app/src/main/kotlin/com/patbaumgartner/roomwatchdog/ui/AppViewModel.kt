@@ -14,6 +14,7 @@ import com.patbaumgartner.roomwatchdog.data.device.DeviceStatus
 import com.patbaumgartner.roomwatchdog.data.device.DeviceException
 import com.patbaumgartner.roomwatchdog.data.device.TelemetryFrame
 import com.patbaumgartner.roomwatchdog.data.device.TelemetryStream
+import com.patbaumgartner.roomwatchdog.data.gotify.GotifyClient
 import com.patbaumgartner.roomwatchdog.data.gotify.GotifyException
 import com.patbaumgartner.roomwatchdog.data.model.latestRoomSignals
 import com.patbaumgartner.roomwatchdog.data.settings.WatchdogConfig
@@ -269,23 +270,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             while (true) {
                 val config = settings.current
                 if (AppVisibility.isForeground && config.isConfigured && telemetry == null && !stream.isActive) {
-                    device.status(config.deviceUrl, config.apiToken).onSuccess { status ->
-                        _state.update {
-                            it.copy(
-                                deviceStatus = status,
-                                lastUpdated = System.currentTimeMillis(),
-                                connected = true,
-                                presenceDetected = status.presence,
-                                error = null,
-                            )
-                        }
-                    }.onFailure {
-                        _state.update { it.copy(connected = false) }
-                    }
+                    device.status(config.deviceUrl, config.apiToken)
+                        .onSuccess(::onStatus)
+                        .onFailure { _state.update { it.copy(connected = false) } }
                 }
                 delay(POLL_INTERVAL_MS)
             }
         }
+    }
+
+    private fun onStatus(status: DeviceStatus) = _state.update {
+        it.copy(
+            deviceStatus = status,
+            lastUpdated = System.currentTimeMillis(),
+            connected = true,
+            presenceDetected = status.presence,
+            error = null,
+        )
     }
 
     fun applyIntent(intent: Intent?) {
@@ -325,7 +326,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             updateSetup { copy(error = app.getString(R.string.error_setup_missing)) }
             return
         }
-        if (setup.clientToken.startsWith(GotifyExceptionToken.APPLICATION)) {
+        if (setup.clientToken.startsWith(GotifyClient.APPLICATION_TOKEN_PREFIX)) {
             updateSetup { copy(error = app.getString(R.string.error_app_token)) }
             return
         }
@@ -384,19 +385,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val config = settings.current
         if (config.deviceUrl.isBlank() || telemetry != null || stream.isActive) return
         viewModelScope.launch {
-            device.status(config.deviceUrl, config.apiToken).onSuccess { status ->
-                _state.update {
-                    it.copy(
-                        deviceStatus = status,
-                        lastUpdated = System.currentTimeMillis(),
-                        connected = true,
-                        presenceDetected = status.presence,
-                        error = null,
-                    )
-                }
-            }.onFailure {
-                _state.update { it.copy(connected = false) }
-            }
+            device.status(config.deviceUrl, config.apiToken)
+                .onSuccess(::onStatus)
+                .onFailure { _state.update { it.copy(connected = false) } }
         }
     }
 
@@ -458,7 +449,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         GotifyException.Kind.NotHttps -> app.getString(R.string.error_gotify_https)
         GotifyException.Kind.Auth -> app.getString(R.string.error_gotify_auth)
         GotifyException.Kind.ApplicationToken -> app.getString(R.string.error_app_token)
-
         else -> app.getString(R.string.error_gotify_unreachable)
     }
 
@@ -469,10 +459,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         gotifyUrl = config.gotifyUrl,
         clientToken = config.gotifyClientToken,
     )
-
-    private object GotifyExceptionToken {
-        const val APPLICATION = "gtfya."
-    }
 
     private companion object {
         const val POLL_INTERVAL_MS = 2_000L

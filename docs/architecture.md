@@ -14,7 +14,9 @@ small; dependencies flow from UI and services toward data and platform adapters.
 - `data/gotify/` handles Gotify REST calls, WebSocket decoding, and conversion to
   domain events.
 - `data/network/EndpointPolicy` is the shared trust boundary for configured URLs.
-  Gotify requires HTTPS; device cleartext is restricted to local/private hosts.
+  Gotify requires HTTPS; device cleartext is restricted to hosts that resolve as
+  loopback, link-local, RFC 1918 or IPv6 unique-local addresses, and to names in
+  the reserved local zones.
 - `audio/PcmStreamSession` owns the ESP32 audio connection and fans PCM frames
   out to playback, metering, and optional recording.
 - `audio/NoiseFilter` cleans the captured frames (DC block, learnt spectral noise
@@ -27,9 +29,10 @@ small; dependencies flow from UI and services toward data and platform adapters.
   authenticated notification action intents.
 
 `AppContainer` constructs the process-wide object graph. REST clients have finite
-call timeouts; only the live PCM and WebSocket clients have unbounded read
-timeouts, with explicit cancellation and WebSocket pings controlling their
-lifetimes.
+call timeouts. The live clients keep the call itself unbounded, because a session
+may legitimately run for hours, and prove liveness another way: WebSockets ping,
+and the audio stream bounds each individual read, which at 48 kHz is only ever a
+few milliseconds of data away.
 
 ## Event flow
 
@@ -74,7 +77,8 @@ as room-presence alerts.
 
 ## Tests
 
-JVM unit tests cover endpoint trust rules, Gotify event parsing, and the audio
-chain (noise learning, suppression state). Android lint validates resources,
-manifest declarations, API levels, and Compose usage. Both debug and minified
-release variants are assembled in CI to exercise resource shrinking and R8.
+JVM unit tests cover endpoint trust rules, the `/ws` frame contract, Gotify event
+parsing, and the audio chain (noise learning, suppression state). Android lint
+validates resources, manifest declarations, API levels, and Compose usage. Both
+debug and minified release variants are assembled in CI to exercise resource
+shrinking and R8.

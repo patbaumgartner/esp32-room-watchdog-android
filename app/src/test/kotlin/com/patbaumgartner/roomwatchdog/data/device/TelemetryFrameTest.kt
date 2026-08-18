@@ -21,15 +21,17 @@ class TelemetryFrameTest {
             """.trimIndent(),
         )
 
-        assertEquals(TelemetryFrame.Hello(
-            host = "watchdog",
-            audioSampleRate = 48_000,
-            audioPort = 81,
-            heartbeatMs = 2_000,
-            minGate = 2,
-            maxGate = 8,
-            uptimeMs = 12_345,
-        ), frame)
+        assertEquals(
+            TelemetryFrame.Hello(
+                host = "watchdog",
+                audioSampleRate = 48_000,
+                audioPort = 81,
+                heartbeatMs = 2_000,
+                minGate = 2,
+                maxGate = 8,
+                uptimeMs = 12_345,
+            ), frame
+        )
     }
 
     @Test
