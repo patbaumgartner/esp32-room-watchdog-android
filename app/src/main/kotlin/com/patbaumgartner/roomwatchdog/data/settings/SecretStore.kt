@@ -54,8 +54,6 @@ class SecretStore(context: Context) {
         }.getOrNull()
     }
 
-    fun clear() = prefs.edit { clear() }
-
     private companion object {
         const val ANDROID_KEYSTORE = "AndroidKeyStore"
         const val KEY_ALIAS = "watchdog_secrets_key"

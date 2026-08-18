@@ -10,10 +10,12 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import androidx.core.content.getSystemService
+import com.patbaumgartner.roomwatchdog.AppVisibility
 import com.patbaumgartner.roomwatchdog.R
 import com.patbaumgartner.roomwatchdog.RoomWatchdogApp
 import com.patbaumgartner.roomwatchdog.data.gotify.toWatchdogEvent
 import com.patbaumgartner.roomwatchdog.data.gotify.GotifyStream
+import com.patbaumgartner.roomwatchdog.data.model.WatchdogEvent
 import com.patbaumgartner.roomwatchdog.data.model.WatchdogEventType
 import com.patbaumgartner.roomwatchdog.data.settings.WatchdogConfig
 import com.patbaumgartner.roomwatchdog.notifications.AlertNotifier
@@ -136,15 +138,14 @@ class AlertConnectionService : Service() {
             ?.forEach { handle(it.toWatchdogEvent(), config) }
     }
 
-    private fun handle(event: com.patbaumgartner.roomwatchdog.data.model.WatchdogEvent, config: WatchdogConfig) {
-        if (config.gotifyAppId != WatchdogConfig.ALL_APPLICATIONS && event.appId != config.gotifyAppId) return
+    private fun handle(event: WatchdogEvent, config: WatchdogConfig) {
         if (event.type == WatchdogEventType.Unknown) {
             app.container.settings.rememberMessageId(event.messageId)
             return
         }
         if (!app.container.events.record(event)) return
         app.container.settings.rememberMessageId(event.messageId)
-        if (com.patbaumgartner.roomwatchdog.AppVisibility.isAttendingRoom) {
+        if (AppVisibility.isAttendingRoom) {
             // The live screen, or the audio already playing, says this better than a banner would.
             app.container.notifier.cancelEventAlerts()
             return
@@ -204,10 +205,6 @@ class AlertConnectionService : Service() {
         fun start(context: Context) {
             val intent = Intent(context, AlertConnectionService::class.java)
             context.startForegroundService(intent)
-        }
-
-        fun stop(context: Context) {
-            context.stopService(Intent(context, AlertConnectionService::class.java))
         }
     }
 }

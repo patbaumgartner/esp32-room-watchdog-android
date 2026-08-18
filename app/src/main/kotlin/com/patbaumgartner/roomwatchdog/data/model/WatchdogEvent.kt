@@ -12,7 +12,6 @@ enum class WatchdogEventType {
 
 data class WatchdogEvent(
     val messageId: Long,
-    val appId: Long,
     val title: String,
     val message: String,
     val priority: Int,

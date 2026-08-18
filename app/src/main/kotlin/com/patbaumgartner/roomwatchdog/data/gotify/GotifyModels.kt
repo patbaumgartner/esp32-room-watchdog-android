@@ -11,16 +11,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
-data class GotifyApplication(
-    val id: Long,
-    val name: String = "",
-    val description: String = "",
-)
-
-@Serializable
 data class GotifyMessage(
     val id: Long = 0,
-    val appid: Long = 0,
     val message: String = "",
     val title: String = "",
     val priority: Int = 0,
@@ -30,9 +22,6 @@ data class GotifyMessage(
 
 @Serializable
 data class PagedMessages(val messages: List<GotifyMessage> = emptyList())
-
-@Serializable
-data class CreatedClient(val id: Long = 0, val token: String = "", val name: String = "")
 
 @Serializable
 data class GotifyUser(val id: Long = 0, val name: String = "", val admin: Boolean = false)
@@ -64,7 +53,6 @@ fun GotifyMessage.toWatchdogEvent(receivedAtMillis: Long = System.currentTimeMil
 
     return WatchdogEvent(
         messageId = id,
-        appId = appid,
         title = title.clip(MAX_TITLE),
         message = message.clip(MAX_MESSAGE),
         priority = priority,

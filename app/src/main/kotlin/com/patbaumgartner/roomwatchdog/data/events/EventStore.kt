@@ -13,7 +13,6 @@ import kotlinx.serialization.json.Json
 @Serializable
 private data class StoredEvent(
     val messageId: Long,
-    val appId: Long,
     val title: String,
     val message: String,
     val priority: Int,
@@ -32,8 +31,6 @@ class EventStore(context: Context) {
     private val _events = MutableStateFlow(read())
     val events: StateFlow<List<WatchdogEvent>> = _events.asStateFlow()
 
-    val latest: WatchdogEvent? get() = _events.value.firstOrNull()
-
     /** Returns false when the message was already stored, so notifications stay de-duplicated. */
     @Synchronized
     fun record(event: WatchdogEvent): Boolean {
@@ -42,9 +39,6 @@ class EventStore(context: Context) {
         return true
     }
 
-    @Synchronized
-    fun clear() = write(emptyList())
-
     private fun read(): List<WatchdogEvent> {
         val stored = prefs.getString(KEY, null) ?: return emptyList()
         return runCatching { json.decodeFromString<List<StoredEvent>>(stored) }
@@ -52,7 +46,6 @@ class EventStore(context: Context) {
             .map {
                 WatchdogEvent(
                     messageId = it.messageId,
-                    appId = it.appId,
                     title = it.title,
                     message = it.message,
                     priority = it.priority,
@@ -70,7 +63,6 @@ class EventStore(context: Context) {
         val stored = events.map {
             StoredEvent(
                 messageId = it.messageId,
-                appId = it.appId,
                 title = it.title,
                 message = it.message,
                 priority = it.priority,

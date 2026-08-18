@@ -13,7 +13,6 @@ class GotifyModelsTest {
     fun `current firmware presence text becomes a typed event`() {
         val event = GotifyMessage(
             id = 42,
-            appid = 7,
             title = "ESP32 Room Watchdog",
             message = "Person detected at 1.5m (moving)",
             priority = 5,
