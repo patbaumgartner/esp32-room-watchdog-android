@@ -6,6 +6,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.patbaumgartner.roomwatchdog.AppVisibility
 import com.patbaumgartner.roomwatchdog.R
+import com.patbaumgartner.roomwatchdog.RoomWatchdogApp
+import com.patbaumgartner.roomwatchdog.audio.StreamPhase
+import com.patbaumgartner.roomwatchdog.audio.StreamStatus
 import com.patbaumgartner.roomwatchdog.data.device.DeviceClient
 import com.patbaumgartner.roomwatchdog.data.device.DeviceStatus
 import com.patbaumgartner.roomwatchdog.data.device.DeviceException
@@ -49,7 +52,7 @@ data class HomeState(
     val deviceStatus: DeviceStatus? = null,
     val lastUpdated: Long? = null,
     val connected: Boolean = false,
-    val stream: com.patbaumgartner.roomwatchdog.audio.StreamStatus = com.patbaumgartner.roomwatchdog.audio.StreamStatus(),
+    val stream: StreamStatus = StreamStatus(),
     val level: Float = 0f,
     val presenceDetected: Boolean = false,
     val soundDetected: Boolean = false,
@@ -63,7 +66,7 @@ data class HomeState(
      * level the device reports over /status.
      */
     val waveLevel: Float
-        get() = if (stream.phase == com.patbaumgartner.roomwatchdog.audio.StreamPhase.Live) {
+        get() = if (stream.phase == StreamPhase.Live) {
             level
         } else {
             ((deviceStatus?.micPeakToPeak ?: 0) / MIC_FULL_SCALE).coerceIn(0f, 1f)
@@ -75,7 +78,7 @@ private const val MIC_FULL_SCALE = 6_000f
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val app = application as com.patbaumgartner.roomwatchdog.RoomWatchdogApp
+    private val app = application as RoomWatchdogApp
     private val settings = app.container.settings
     private val device = app.container.deviceClient
     private val stream = app.container.streamSession

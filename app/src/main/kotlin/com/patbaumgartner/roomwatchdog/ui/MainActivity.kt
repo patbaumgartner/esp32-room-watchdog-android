@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.patbaumgartner.roomwatchdog.AppVisibility
+import com.patbaumgartner.roomwatchdog.RoomWatchdogApp
 import com.patbaumgartner.roomwatchdog.ui.theme.RoomWatchdogTheme
 
 class MainActivity : ComponentActivity() {
@@ -51,7 +52,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: android.content.Intent) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         viewModel.applyIntent(intent)
@@ -61,7 +62,7 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         AppVisibility.onEnterForeground()
         // The live screen says everything the alerts would, so clear whatever is already queued.
-        (application as com.patbaumgartner.roomwatchdog.RoomWatchdogApp).container.notifier.cancelEventAlerts()
+        (application as RoomWatchdogApp).container.notifier.cancelEventAlerts()
     }
 
     override fun onStop() {

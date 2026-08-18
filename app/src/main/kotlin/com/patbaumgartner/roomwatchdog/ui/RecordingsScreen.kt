@@ -44,15 +44,16 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.patbaumgartner.roomwatchdog.R
+import com.patbaumgartner.roomwatchdog.RoomWatchdogApp
 import com.patbaumgartner.roomwatchdog.recordings.Recording
 import com.patbaumgartner.roomwatchdog.ui.theme.WatchdogTheme
+import java.io.File
 
 @Composable
 internal fun RecordingsScreen(viewModel: AppViewModel) {
     val context = LocalContext.current
     val shareChooserTitle = stringResource(R.string.recording_share_chooser)
-    val app =
-        (context.applicationContext as com.patbaumgartner.roomwatchdog.RoomWatchdogApp)
+    val app = context.applicationContext as RoomWatchdogApp
     val recordings by app.container.recordings.recordings.collectAsStateWithLifecycle()
     var recordingToRename by remember { mutableStateOf<Recording?>(null) }
     var recordingToDelete by remember { mutableStateOf<Recording?>(null) }
@@ -232,7 +233,7 @@ private fun RecordingRow(
 }
 
 
-private fun openRecording(context: Context, file: java.io.File): Boolean = runCatching {
+private fun openRecording(context: Context, file: File): Boolean = runCatching {
     check(file.isFile)
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.recordings", file)
     val intent = Intent(Intent.ACTION_VIEW)
@@ -241,7 +242,7 @@ private fun openRecording(context: Context, file: java.io.File): Boolean = runCa
     context.startActivity(intent)
 }.isSuccess
 
-private fun shareRecording(context: Context, file: java.io.File, title: String, chooserTitle: String): Boolean =
+private fun shareRecording(context: Context, file: File, title: String, chooserTitle: String): Boolean =
     runCatching {
         check(file.isFile)
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.recordings", file)

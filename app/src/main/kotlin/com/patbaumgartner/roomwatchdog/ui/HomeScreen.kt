@@ -65,6 +65,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -305,7 +306,7 @@ private fun RoomSignalIndicators(presence: Boolean, sound: Boolean) {
 @Composable
 private fun SignalIndicator(
     label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     color: Color,
 ) {
     Surface(
@@ -328,7 +329,7 @@ private fun SignalIndicator(
 @Composable
 private fun CircleAction(
     onClick: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     contentDescription: String,
     containerColor: Color,
     contentColor: Color,
