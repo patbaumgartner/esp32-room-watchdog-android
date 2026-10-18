@@ -36,11 +36,11 @@ fun String.asBuildConfigLiteral(): String = buildString {
 }
 
 android {
-    namespace = "com.patbaumgartner.roomwatchdog"
+    namespace = "com.patbaumgartner.android.roomwatchdog"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.patbaumgartner.roomwatchdog"
+        applicationId = "com.patbaumgartner.android.roomwatchdog"
         minSdk = 26
         targetSdk = 37
         versionCode = 1

@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ANDROID_HOME="${ANDROID_HOME:-${HOME}/Android/Sdk}"
 AVD_NAME="${AVD_NAME:-myAndroidEmulatorDevice}"
-PACKAGE_NAME="com.patbaumgartner.roomwatchdog"
+PACKAGE_NAME="com.patbaumgartner.android.roomwatchdog"
 ACTIVITY_NAME=".ui.MainActivity"
 EMULATOR="${ANDROID_HOME}/emulator/emulator"
 ADB="${ANDROID_HOME}/platform-tools/adb"

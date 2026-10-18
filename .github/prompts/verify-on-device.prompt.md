@@ -23,7 +23,7 @@ it. In that case install through the Windows binary, staging the APK on a path W
 ```bash
 cp app/build/outputs/apk/debug/app-debug.apk /mnt/c/temp/rw.apk
 adb.exe install -r 'C:\temp\rw.apk'
-adb.exe shell am start -n com.patbaumgartner.roomwatchdog/.ui.MainActivity
+adb.exe shell am start -n com.patbaumgartner.android.roomwatchdog/.ui.MainActivity
 ```
 
 **If the install hangs, the phone is locked.** Confirm with
@@ -35,14 +35,14 @@ a locked device but `pm install` does not, and no amount of retrying changes tha
 The app writes no logs, so read its state through `dumpsys`:
 
 ```bash
-adb shell dumpsys notification --noredact | grep -A20 pkg=com.patbaumgartner.roomwatchdog
+adb shell dumpsys notification --noredact | grep -A20 pkg=com.patbaumgartner.android.roomwatchdog
 adb shell dumpsys activity activities | grep topResumedActivity
 adb shell dumpsys power | grep mWakefulness
 ```
 
 Required evidence:
 
-- **Process alive** — `adb shell pidof com.patbaumgartner.roomwatchdog` returns a pid
+- **Process alive** — `adb shell pidof com.patbaumgartner.android.roomwatchdog` returns a pid
 - **Gotify connected** — the ongoing notification's title is `Watchdog connected`, which is set
   only in `GotifyStream.onOpen`. `Reconnecting…` or `Sign in again…` means the handshake failed.
 - **No crash** — `adb logcat -d -b crash | grep roomwatchdog` is empty
