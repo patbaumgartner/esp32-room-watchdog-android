@@ -9,7 +9,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ANDROID_HOME="${ANDROID_HOME:-${HOME}/Android/Sdk}"
-PACKAGE_NAME="com.patbaumgartner.roomwatchdog"
+PACKAGE_NAME="com.patbaumgartner.android.roomwatchdog"
 ACTIVITY_NAME=".ui.MainActivity"
 ADB="${ANDROID_HOME}/platform-tools/adb"
 

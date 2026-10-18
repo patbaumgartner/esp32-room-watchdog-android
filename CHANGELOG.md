@@ -18,6 +18,8 @@ No public release has been published yet.
 
 ### Changed
 
+- Launcher headphones are larger and white on the blue circle
+- The home header uses the room name from Settings, including the prefilled name before setup is saved
 - Audio now streams from the device's dedicated audio port, announced by the socket
 - Presence status now uses the blue brand colour
 - Gotify setup now validates HTTPS and the client token before saving

@@ -145,10 +145,10 @@ changes, and cite what was observed — a measurement, a `dumpsys` reading, a sc
 Since the app logs nothing, `dumpsys` is the instrument:
 
 ```bash
-adb shell dumpsys notification --noredact | grep -A20 pkg=com.patbaumgartner.roomwatchdog
+adb shell dumpsys notification --noredact | grep -A20 pkg=com.patbaumgartner.android.roomwatchdog
 adb shell dumpsys activity activities | grep topResumedActivity
 adb shell dumpsys power | grep mWakefulness
-adb shell am start -W -n com.patbaumgartner.roomwatchdog/.ui.MainActivity   # cold-start timing
+adb shell am start -W -n com.patbaumgartner.android.roomwatchdog/.ui.MainActivity   # cold-start timing
 ```
 
 The foreground notification's title is the Gotify connection state, so `Watchdog connected`
