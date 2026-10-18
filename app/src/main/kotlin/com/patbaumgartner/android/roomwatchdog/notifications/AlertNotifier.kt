@@ -50,7 +50,7 @@ class AlertNotifier(private val context: Context) {
 
     fun foregroundNotification(state: String, detail: String?) =
         NotificationCompat.Builder(context, CHANNEL_STATUS)
-            .setSmallIcon(R.drawable.ic_stat_watchdog)
+            .setSmallIcon(R.drawable.ic_notification_headphones)
             .setContentTitle(state)
             .setContentText(detail)
             .setOngoing(true)
@@ -86,7 +86,7 @@ class AlertNotifier(private val context: Context) {
         val silent = event.type == WatchdogEventType.Movement
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ALERTS)
-            .setSmallIcon(R.drawable.ic_stat_watchdog)
+            .setSmallIcon(R.drawable.ic_notification_headphones)
             .setContentTitle(headline(event, roomName))
             .setContentText(event.message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(event.message))
@@ -123,7 +123,7 @@ class AlertNotifier(private val context: Context) {
 
     private fun quiet(event: WatchdogEvent, roomName: String) =
         NotificationCompat.Builder(context, CHANNEL_STATUS)
-            .setSmallIcon(R.drawable.ic_stat_watchdog)
+            .setSmallIcon(R.drawable.ic_notification_headphones)
             .setContentTitle(headline(event, roomName))
             .setContentText(event.message)
             .setAutoCancel(true)
