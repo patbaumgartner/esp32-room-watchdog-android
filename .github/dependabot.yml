@@ -30,8 +30,7 @@ updates:
     github-actions:
       patterns:
       - '*'
-groups:
-  multi-step-actions:
-    patterns:
-    - github/codeql-action/*
-    - gradle/actions/*
+    multi-step-actions:
+      patterns:
+      - github/codeql-action/*
+      - gradle/actions/*
