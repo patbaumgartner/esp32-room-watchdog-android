@@ -35,6 +35,21 @@ fun String.asBuildConfigLiteral(): String = buildString {
     append('"')
 }
 
+// Release signing credentials come from the environment (CI) or from a local,
+// git-ignored keystore.properties file (see CONTRIBUTING.md, "Releases").
+// Without either, the release build stays unsigned, which is fine for local
+// development. Never commit the keystore or the passwords.
+val keystoreProps = Properties().apply {
+    val propsFile = rootProject.file("keystore.properties")
+    if (propsFile.isFile) propsFile.inputStream().use(::load)
+}
+
+fun signingSecret(envName: String, propertyName: String): String? =
+    System.getenv(envName)?.takeIf { it.isNotBlank() }
+        ?: keystoreProps.getProperty(propertyName)?.takeIf { it.isNotBlank() }
+
+val releaseKeystoreFile: String? = signingSecret("SR_KEYSTORE_FILE", "storeFile")
+
 android {
     namespace = "com.patbaumgartner.android.roomwatchdog"
     compileSdk = 37
@@ -43,8 +58,21 @@ android {
         applicationId = "com.patbaumgartner.android.roomwatchdog"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        // Overridable from the command line (-PversionCode=… -PversionName=…),
+        // which the release workflow uses to stamp tag-based versions.
+        versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 1
+        versionName = (project.findProperty("versionName") as String?) ?: "0.1.0"
+    }
+
+    signingConfigs {
+        if (releaseKeystoreFile != null) {
+            create("release") {
+                storeFile = file(releaseKeystoreFile)
+                storePassword = signingSecret("SR_KEYSTORE_PASSWORD", "storePassword")
+                keyAlias = signingSecret("SR_KEY_ALIAS", "keyAlias")
+                keyPassword = signingSecret("SR_KEY_PASSWORD", "keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -68,6 +96,8 @@ android {
             buildConfigField("String", "DEV_GOTIFY_URL", "\"\"")
             buildConfigField("String", "DEV_GOTIFY_CLIENT_TOKEN", "\"\"")
             buildConfigField("String", "DEV_ROOM_NAME", "\"\"")
+            // Null (unsigned) when no signing credentials are configured.
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

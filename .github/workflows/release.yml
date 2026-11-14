@@ -1,0 +1,200 @@
+---
+name: Release
+
+# Publishes downloadable builds to the GitHub Releases page:
+#   - push to main       -> "Snapshot" prerelease with the latest signed APK
+#   - push of tag v*.*.* -> release with signed APK + AAB + SHA256SUMS
+#
+# Both are signed with the release key held in repository secrets
+# (SR_KEYSTORE_BASE64, SR_KEYSTORE_PASSWORD, SR_KEY_ALIAS, SR_KEY_PASSWORD;
+# see CONTRIBUTING.md "Releases"). Snapshots and releases share the same
+# signing key, so users can update between them without uninstalling.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  # Manual runs (e.g. from a release branch while a PR is waiting on branch
+  # protection) publish the snapshot job below.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    name: Snapshot build (main)
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 17
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78  # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c  # v6.4.1
+
+      - name: Decode release keystore
+        env:
+          SR_KEYSTORE_BASE64: ${{ secrets.SR_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$SR_KEYSTORE_BASE64" ]; then
+            echo "::error::Repository secret SR_KEYSTORE_BASE64 is not set (see CONTRIBUTING.md, Releases)"
+            exit 1
+          fi
+          printf '%s' "$SR_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/room-watchdog-release.keystore"
+          chmod 600 "$RUNNER_TEMP/room-watchdog-release.keystore"
+          echo "SR_KEYSTORE_FILE=$RUNNER_TEMP/room-watchdog-release.keystore" >> "$GITHUB_ENV"
+
+      - name: Build signed snapshot APK
+        env:
+          SR_KEYSTORE_PASSWORD: ${{ secrets.SR_KEYSTORE_PASSWORD }}
+          SR_KEY_ALIAS: ${{ secrets.SR_KEY_ALIAS }}
+          SR_KEY_PASSWORD: ${{ secrets.SR_KEY_PASSWORD }}
+        run: |
+          ./gradlew --no-daemon :app:assembleRelease \
+            -PversionName="snapshot-${GITHUB_SHA::7}" \
+            -PversionCode=$((2000000000 + GITHUB_RUN_NUMBER))
+
+      - name: Verify APK signature
+        run: |
+          apksigner="$(ls -1 "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk
+
+      - name: Stage artifacts
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk dist/room-watchdog-snapshot.apk
+          (cd dist && sha256sum room-watchdog-snapshot.apk > SHA256SUMS)
+
+      - name: Publish Snapshot prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          notes="$(mktemp)"
+          {
+            echo "Latest signed build of ${GITHUB_REF_NAME} (commit ${GITHUB_SHA})."
+            echo
+            echo "Installs over official releases and vice versa (same signing key)."
+            echo "Verify the download against SHA256SUMS before installing."
+          } > "$notes"
+          if gh release view snapshot --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release edit snapshot --repo "$GITHUB_REPOSITORY" --notes-file "$notes"
+          else
+            gh release create snapshot --repo "$GITHUB_REPOSITORY" --title "Snapshot" \
+              --prerelease --target main --notes-file "$notes"
+          fi
+          gh release upload snapshot --repo "$GITHUB_REPOSITORY" --clobber dist/*
+
+  release:
+    name: Release build (tag)
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 17
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78  # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c  # v6.4.1
+
+      - name: Decode release keystore
+        env:
+          SR_KEYSTORE_BASE64: ${{ secrets.SR_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$SR_KEYSTORE_BASE64" ]; then
+            echo "::error::Repository secret SR_KEYSTORE_BASE64 is not set (see CONTRIBUTING.md, Releases)"
+            exit 1
+          fi
+          printf '%s' "$SR_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/room-watchdog-release.keystore"
+          chmod 600 "$RUNNER_TEMP/room-watchdog-release.keystore"
+          echo "SR_KEYSTORE_FILE=$RUNNER_TEMP/room-watchdog-release.keystore" >> "$GITHUB_ENV"
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          name="${GITHUB_REF_NAME#v}"
+          IFS='.' read -r major minor patch <<< "$name"
+          code=$((major * 10000 + minor * 100 + patch))
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Building version $name (versionCode $code) from tag $GITHUB_REF_NAME"
+
+      - name: Build signed APK and AAB
+        env:
+          SR_KEYSTORE_PASSWORD: ${{ secrets.SR_KEYSTORE_PASSWORD }}
+          SR_KEY_ALIAS: ${{ secrets.SR_KEY_ALIAS }}
+          SR_KEY_PASSWORD: ${{ secrets.SR_KEY_PASSWORD }}
+        run: |
+          ./gradlew --no-daemon :app:assembleRelease :app:bundleRelease \
+            -PversionName="${{ steps.version.outputs.name }}" \
+            -PversionCode="${{ steps.version.outputs.code }}"
+
+      - name: Verify APK signature and capture certificate fingerprint
+        id: cert
+        run: |
+          apksigner="$(ls -1 "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk
+          "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk \
+            | awk '/SHA-256 digest/ {print $NF; exit}' > cert-sha256.txt
+          echo "sha256=$(cat cert-sha256.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Stage artifacts
+        run: |
+          v="${{ steps.version.outputs.name }}"
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/room-watchdog-$v.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/room-watchdog-$v.aab"
+          (cd dist && sha256sum room-watchdog-"$v".apk room-watchdog-"$v".aab > SHA256SUMS)
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CERT_SHA256: ${{ steps.cert.outputs.sha256 }}
+        run: |
+          v="${{ steps.version.outputs.name }}"
+          notes="$(mktemp)"
+          {
+            echo "## Room Watchdog v$v"
+            echo
+            echo "Privacy-first Android companion for a self-hosted ESP32 room sensor."
+            echo "Requires Android 8.0 (API 26) or newer."
+            echo
+            echo "### Install"
+            echo "1. Download room-watchdog-$v.apk below."
+            echo "2. Verify the download: sha256sum -c SHA256SUMS"
+            echo "3. Open the APK on your device and allow \"Install unknown apps\" for the app you open it with."
+            echo "4. Install. Later releases install as an in-place update (same signing key)."
+            echo
+            echo "Signer certificate SHA-256: $CERT_SHA256"
+            echo
+            echo "Built from tag $GITHUB_REF_NAME (commit $GITHUB_SHA)."
+            echo "The .aab is provided for Play-style distribution."
+          } > "$notes"
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --title "v$v" --notes-file "$notes"
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" dist/*

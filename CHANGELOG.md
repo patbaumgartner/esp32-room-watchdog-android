@@ -8,6 +8,13 @@ No public release has been published yet.
 
 ### Added
 
+- Downloadable builds on the GitHub Releases page: every push to `main`
+  publishes a signed **Snapshot** APK (prerelease), and every `vX.Y.Z` tag
+  publishes a signed release with APK, AAB, and `SHA256SUMS`
+  (`.github/workflows/release.yml`, ADR-0001)
+- Release signing is configurable via `SR_*` environment variables or a local
+  `keystore.properties`; `versionName`/`versionCode` can be set with
+  `-PversionName` / `-PversionCode`
 - Live telemetry over the device's `/ws` socket, with the REST poll kept as a fallback
 - Self-tuning noise reduction that learns the room in the first seconds of a session
 - Recording playback, sharing, renaming, and deletion
