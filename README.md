@@ -52,7 +52,7 @@ APK with.
 ## Requirements
 
 - Android 8.0 (API 26) or newer
-- JDK 17
+- JDK 27
 - Android SDK 37 with the matching build tools
 - An ESP32 running the companion firmware on a local network or VPN
 - A Gotify server reachable over HTTPS and a Gotify **client** token (`gtfyc...`)
