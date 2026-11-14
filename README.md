@@ -33,6 +33,22 @@ hand.
 - System-aware light and dark themes
 - Keystore-backed encryption for the ESP32 API token and Gotify client token
 
+## Download
+
+Signed builds are published on the
+[Releases](https://github.com/patbaumgartner/esp32-room-watchdog-android/releases)
+page:
+
+- **Releases** (`vX.Y.Z` tags): signed APK and AAB, plus `SHA256SUMS` and the
+  signer certificate fingerprint in the release notes.
+- **Snapshot** (prerelease, rebuilt on every push to `main`): the latest
+  signed APK for testing.
+
+Both use the same release key, so they install over each other as updates.
+Verify a download against `SHA256SUMS` before installing. Sideloading on
+Android 8+ requires allowing "Install unknown apps" for the app you open the
+APK with.
+
 ## Requirements
 
 - Android 8.0 (API 26) or newer
@@ -129,8 +145,8 @@ yamllint .
 find . -name '*.sh' -not -path './*/build/*' -exec shellcheck {} +
 ```
 
-The release APK produced by a source checkout is unsigned. Signing and
-distribution remain the responsibility of the person building the app.
+The release APK produced by a plain source checkout is unsigned; official
+signed builds are published on the Releases page (see [Download](#download)).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow and
 [docs/architecture.md](docs/architecture.md) for the design.
