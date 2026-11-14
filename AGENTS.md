@@ -16,7 +16,8 @@ misleads rather than merely ages.
 ## Build and validate
 
 Gradle needs the SDK location from `ANDROID_HOME` or `sdk.dir` in `local.properties`, or it
-stops with `SDK location not found`. Builds on JDK 17, same as CI.
+stops with `SDK location not found`. Builds on JDK 27, same as CI (bytecode
+target stays 17).
 
 ```bash
 export ANDROID_HOME="$HOME/Android/Sdk"

@@ -32,6 +32,7 @@ No public release has been published yet.
 - Gotify setup now validates HTTPS and the client token before saving
 - REST and live-stream clients now use separate timeout policies
 - ESP32 HTTPS uses Android's system trust store and hostname verification
+- CI, the release workflow, and local builds now run on JDK 27 (Gradle 9.8.2 / AGP 9.5.1; the bytecode target stays 17)
 
 ### Fixed
 
