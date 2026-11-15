@@ -91,9 +91,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     @Volatile
     private var telemetry: TelemetryStream? = null
 
-    @Volatile
-    private var audioPort = DeviceClient.DEFAULT_AUDIO_PORT
-
     private val _state = MutableStateFlow(
         HomeState(
             screen = AppScreen.Home,
@@ -217,7 +214,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private fun onTelemetryFrame(frame: TelemetryFrame) {
         when (frame) {
             is TelemetryFrame.Hello -> {
-                audioPort = frame.audioPort
+                // The announced audioPort is not used: the app always streams from the
+                // base URL's own port and the reverse proxy routes /audio.pcm by path.
             }
 
             is TelemetryFrame.Telemetry -> _state.update {
@@ -297,7 +295,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 baseUrl = config.deviceUrl,
                 apiToken = config.apiToken,
                 alsoRecord = action == AlertNotifier.AutoStart.RECORD,
-                audioPort = audioPort,
             )
         }
     }
@@ -393,7 +390,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startListening() {
         val config = settings.current
-        if (config.isConfigured) stream.start(config.deviceUrl, config.apiToken, audioPort = audioPort)
+        if (config.isConfigured) stream.start(config.deviceUrl, config.apiToken)
     }
 
     fun stopListening() {

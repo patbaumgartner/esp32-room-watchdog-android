@@ -87,26 +87,22 @@ class EndpointPolicyTest {
     }
 
     @Test
-    fun `audio takes the device's own port unless the URL already names one`() {
+    fun `audio stays on the base URL's own port so a proxy can route by path`() {
+        // Only the scheme default (443 for https, 80 for http) or an explicit port in
+        // the configured URL may appear; the device's announced audio port (81) must
+        // never be written into the URL, otherwise a reverse proxy is bypassed.
         assertEquals(
-            "http://192.168.1.10:81/audio.pcm",
-            deviceAudioUrl("http://192.168.1.10", 81).toString(),
+            "https://watchdog.example.com/audio.pcm",
+            deviceAudioUrl("https://watchdog.example.com").toString(),
+        )
+        assertEquals(
+            "http://192.168.1.10/audio.pcm",
+            deviceAudioUrl("http://192.168.1.10").toString(),
         )
         assertEquals(
             "https://watchdog.example.com:8443/audio.pcm",
-            deviceAudioUrl("https://watchdog.example.com:8443", 81).toString(),
+            deviceAudioUrl("https://watchdog.example.com:8443").toString(),
         )
         assertEquals("http://192.168.1.10/ws", deviceSocketUrl("http://192.168.1.10").toString())
-    }
-
-    @Test
-    fun `an implausible announced port leaves the configured URL alone`() {
-        listOf(null, 0, -1, 70_000).forEach { port ->
-            assertEquals(
-                "port $port must not reach okhttp",
-                "http://192.168.1.10/audio.pcm",
-                deviceAudioUrl("http://192.168.1.10", port).toString(),
-            )
-        }
     }
 }

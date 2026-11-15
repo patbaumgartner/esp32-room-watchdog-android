@@ -93,9 +93,10 @@ class DeviceClient(private val http: OkHttpClient) {
         else -> DeviceException(DeviceException.Kind.Unknown, error)
     }
 
-    fun audioRequest(baseUrl: String, apiToken: String, audioPort: Int? = DEFAULT_AUDIO_PORT): Request =
+    /** The stream is always requested on the base URL's own port (443/80); the proxy routes by path. */
+    fun audioRequest(baseUrl: String, apiToken: String): Request =
         Request.Builder()
-            .url(deviceAudioUrl(baseUrl, audioPort))
+            .url(deviceAudioUrl(baseUrl))
             .header("Authorization", "Bearer $apiToken")
             .get()
             .build()
