@@ -53,13 +53,7 @@ internal fun SettingsScreen(state: HomeState, viewModel: AppViewModel) {
     ) {
         PageHeader(stringResource(R.string.settings_title), viewModel::goHome)
         SetupForm(state.setup, viewModel)
-        TextButton(
-            onClick = { licensesShown = true },
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        ) {
-            Text(stringResource(R.string.settings_open_source_licenses), color = WatchdogTheme.accents.brand)
-        }
-        Column(Modifier.padding(horizontal = 28.dp)) { AuthorNote() }
+        Column(Modifier.padding(horizontal = 28.dp)) { AuthorNote(onShowTypefaceLicense = { licensesShown = true }) }
         Spacer(Modifier.height(32.dp))
     }
 
