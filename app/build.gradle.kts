@@ -18,6 +18,15 @@ fun environmentName(key: String): String = "WATCHDOG_" + key.removePrefix("watch
 
 fun prefill(key: String): String = devPrefill.getProperty(key) ?: System.getenv(environmentName(key)).orEmpty()
 
+// Shown in Settings > About. CI can set GIT_COMMIT; local builds ask git, and builds without git omit it.
+val gitCommit: String = providers.environmentVariable("GIT_COMMIT").orNull?.take(10)
+    ?: runCatching {
+        providers.exec {
+            commandLine("git", "rev-parse", "--short=10", "HEAD")
+            isIgnoreExitValue = true
+        }.standardOutput.asText.get().trim()
+    }.getOrDefault("")
+
 fun String.asBuildConfigLiteral(): String = buildString {
     append('"')
     this@asBuildConfigLiteral.forEach { character ->
@@ -62,6 +71,7 @@ android {
         // which the release workflow uses to stamp tag-based versions.
         versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 1
         versionName = (project.findProperty("versionName") as String?) ?: "0.1.0"
+        buildConfigField("String", "GIT_COMMIT", gitCommit.asBuildConfigLiteral())
     }
 
     signingConfigs {
