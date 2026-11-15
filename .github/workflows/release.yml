@@ -92,13 +92,16 @@ jobs:
             echo "Installs over official releases and vice versa (same signing key)."
             echo "Verify the download against SHA256SUMS before installing."
           } > "$notes"
+          # Recreate the tag too so source archives match the uploaded binaries.
           if gh release view snapshot --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release edit snapshot --repo "$GITHUB_REPOSITORY" --notes-file "$notes"
-          else
-            gh release create snapshot --repo "$GITHUB_REPOSITORY" --title "Snapshot" \
-              --prerelease --target main --notes-file "$notes"
+            gh release delete snapshot --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
           fi
-          gh release upload snapshot --repo "$GITHUB_REPOSITORY" --clobber dist/*
+          # Recover if a previous run left a tag without a release.
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/snapshot" > /dev/null 2>&1; then
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/snapshot"
+          fi
+          gh release create snapshot --repo "$GITHUB_REPOSITORY" --title "Snapshot" \
+            --prerelease --target "$GITHUB_SHA" --notes-file "$notes" dist/*
 
   release:
     name: Release build (tag)
