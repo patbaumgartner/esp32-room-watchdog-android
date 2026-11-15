@@ -81,8 +81,8 @@
     <string name="settings_use_developer">Use developer setup</string>
     <string name="settings_credentials_note">Credentials are encrypted on this phone and are never
         included in recordings or notifications.</string>
-    <string name="settings_open_source_licenses">Open-source licenses</string>
-    <string name="settings_open_source_licenses_title">Open-source licenses</string>
+    <string name="settings_open_source_licenses">Typeface license</string>
+    <string name="settings_open_source_licenses_title">Typeface license</string>
 
     <string name="message_settings_saved">Settings saved</string>
     <string name="message_setup_required">Add your device settings first</string>
@@ -115,4 +115,10 @@
     <string name="cd_record">Start recording</string>
     <string name="cd_stop_recording">Stop recording</string>
     <string name="cd_back">Back</string>
+    <string name="about_heading">About</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_author">© 2026 Patrick Baumgartner - Crafted with ❤️</string>
+    <string name="about_author_name" translatable="false">Patrick Baumgartner</string>
+    <string name="about_author_url" translatable="false">https://patbaumgartner.com/</string>
+    <string name="about_app_license">Apache License 2.0</string>
 </resources>
