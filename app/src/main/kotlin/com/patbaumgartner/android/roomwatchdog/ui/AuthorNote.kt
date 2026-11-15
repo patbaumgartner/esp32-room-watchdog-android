@@ -39,7 +39,11 @@ internal fun AuthorNote(onShowTypefaceLicense: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
+            text = if (BuildConfig.GIT_COMMIT.isBlank()) {
+                stringResource(R.string.about_version, BuildConfig.VERSION_NAME)
+            } else {
+                stringResource(R.string.about_version_commit, BuildConfig.VERSION_NAME, BuildConfig.GIT_COMMIT)
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
