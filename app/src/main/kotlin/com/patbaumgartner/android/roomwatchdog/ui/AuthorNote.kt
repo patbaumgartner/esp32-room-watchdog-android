@@ -1,6 +1,7 @@
 package com.patbaumgartner.android.roomwatchdog.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -47,8 +48,16 @@ internal fun AuthorNote() {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        TextButton(onClick = { uriHandler.openUri(authorUrl) }) {
+        TextButton(
+            onClick = { uriHandler.openUri(authorUrl) },
+            contentPadding = PaddingValues(0.dp),
+        ) {
             Text(styledAuthorNote, style = MaterialTheme.typography.bodyMedium, color = WatchdogTheme.accents.brand)
         }
+        Text(
+            text = stringResource(R.string.about_crafted),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
