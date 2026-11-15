@@ -20,7 +20,7 @@ import com.patbaumgartner.android.roomwatchdog.R
 import com.patbaumgartner.android.roomwatchdog.ui.theme.WatchdogTheme
 
 @Composable
-internal fun AuthorNote() {
+internal fun AuthorNote(onShowTypefaceLicense: () -> Unit) {
     val uriHandler = LocalUriHandler.current
     val authorUrl = stringResource(R.string.about_author_url)
     val authorName = stringResource(R.string.about_author_name)
@@ -43,6 +43,9 @@ internal fun AuthorNote() {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        TextButton(onClick = onShowTypefaceLicense, contentPadding = PaddingValues(0.dp)) {
+            Text(stringResource(R.string.settings_open_source_licenses), color = WatchdogTheme.accents.brand)
+        }
         Text(
             text = stringResource(R.string.about_app_license),
             style = MaterialTheme.typography.bodyMedium,
