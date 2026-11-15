@@ -57,8 +57,9 @@ internal fun SettingsScreen(state: HomeState, viewModel: AppViewModel) {
             onClick = { licensesShown = true },
             modifier = Modifier.align(Alignment.CenterHorizontally),
         ) {
-            Text(stringResource(R.string.settings_open_source_licenses))
+            Text(stringResource(R.string.settings_open_source_licenses), color = WatchdogTheme.accents.brand)
         }
+        Column(Modifier.padding(horizontal = 28.dp)) { AuthorNote() }
         Spacer(Modifier.height(32.dp))
     }
 

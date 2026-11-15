@@ -151,6 +151,12 @@ signed builds are published on the Releases page (see [Download](#download)).
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor workflow and
 [docs/architecture.md](docs/architecture.md) for the design.
 
+## About
+
+Settings shows the app version, open-source notices, and author information.
+
+© 2026 [Patrick Baumgartner](https://patbaumgartner.com/) - Crafted with ❤️
+
 ## License
 
 Room Watchdog is licensed under the [Apache License 2.0](LICENSE). The bundled
