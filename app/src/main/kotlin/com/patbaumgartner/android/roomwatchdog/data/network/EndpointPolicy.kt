@@ -17,19 +17,14 @@ internal fun deviceBaseUrl(value: String): HttpUrl {
 }
 
 /**
- * Audio comes from a second, synchronous server - an async chunked response could not keep up with
- * 48 kHz - so the stream keeps the API's host and scheme but rides on its own port. The port is
- * whatever the device announced, so an implausible one falls back to the configured URL, as does a
- * port already present in that URL: that is how a reverse proxy in front of the device is addressed.
+ * Audio rides the same base URL as the REST API and the WebSocket: the app only ever
+ * talks to the scheme's default port (443 for https, 80 for http). The device's own
+ * audio server on port 81 is a LAN detail - behind a reverse proxy, Traefik routes
+ * /audio.pcm to the device's port 81 by path, so the announced audioPort is not
+ * applied to the URL.
  */
-internal fun deviceAudioUrl(value: String, audioPort: Int?): HttpUrl {
-    val base = deviceBaseUrl(value)
-    val builder = base.newBuilder().addPathSegment("audio.pcm")
-    if (audioPort != null && audioPort in 1..65535 && base.port == HttpUrl.defaultPort(base.scheme)) {
-        builder.port(audioPort)
-    }
-    return builder.build()
-}
+internal fun deviceAudioUrl(value: String): HttpUrl =
+    deviceBaseUrl(value).newBuilder().addPathSegment("audio.pcm").build()
 
 internal fun deviceSocketUrl(value: String): HttpUrl =
     deviceBaseUrl(value).newBuilder().addPathSegment("ws").build()
