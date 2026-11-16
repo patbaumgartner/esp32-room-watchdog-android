@@ -27,7 +27,13 @@ find . -name '*.sh' -not -path './*/build/*' -exec shellcheck {} +
 ```
 
 That is the full CI gate — run it before claiming a change is done. `scripts/deploy-device.sh`
-and `scripts/deploy-emulator.sh` build, install and launch.
+and `scripts/deploy-emulator.sh` build, install and launch. Instrumented UI tests also run in
+CI (`connectedDebugAndroidTest` on an emulator job); locally they need a running emulator, and
+`assembleDebugAndroidTest` at least proves they compile and package:
+
+```bash
+./gradlew assembleDebugAndroidTest
+```
 
 ## Build traps
 
@@ -67,8 +73,10 @@ building unsigned release APKs. Never commit keystore material.
 
 ## Keep the core JVM-testable
 
-There are no instrumentation, Robolectric or Compose tests, and that is deliberate — it works
-only because the interesting logic has no Android imports. Preserve that split:
+The bulk of the suite is plain JVM tests, which works only because the interesting logic has
+no Android imports. The Compose UI is covered by an instrumented smoke suite in
+`app/src/androidTest` (`HomeScreenTest`, run via `connectedDebugAndroidTest` in CI). Preserve
+that split:
 
 - `audio/` DSP (`NoiseFilter`, `Fft`) is pure Kotlin. Only `PcmStreamSession`
   touches `AudioTrack`/`AudioManager`.

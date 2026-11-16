@@ -1,4 +1,4 @@
-# Room Watchdog for Android
+# Room Watchdog
 
 Room Watchdog is a privacy-first Android companion for an ESP32 room sensor.
 It shows live presence, plays and records audio only on demand, and receives
