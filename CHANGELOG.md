@@ -4,7 +4,26 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 ## Unreleased
 
-No public release has been published yet.
+## [0.2.0] - 2026-11-16
+
+### Added
+
+- The About screen now shows the build commit next to the version
+- WebSocket and audio port configuration is simplified: one device address,
+  with the ports announced by the device
+
+### Changed
+
+- The About screen is aligned with the other apps (design, typeface licence
+  location, author note layout)
+- CI, the release workflow, and local builds now run on JDK 27 (Gradle 9.8.2 / AGP 9.5.1; the bytecode target stays 17)
+
+### Fixed
+
+- The snapshot release and tag are recreated on rebuild, so the source
+  archives match the uploaded binaries
+
+## [0.1.0] - 2026-11-14
 
 ### Added
 
@@ -32,7 +51,6 @@ No public release has been published yet.
 - Gotify setup now validates HTTPS and the client token before saving
 - REST and live-stream clients now use separate timeout policies
 - ESP32 HTTPS uses Android's system trust store and hostname verification
-- CI, the release workflow, and local builds now run on JDK 27 (Gradle 9.8.2 / AGP 9.5.1; the bytecode target stays 17)
 
 ### Fixed
 
