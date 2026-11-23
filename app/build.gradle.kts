@@ -61,7 +61,8 @@ val releaseKeystoreFile: String? = signingSecret("SR_KEYSTORE_FILE", "storeFile"
 
 android {
     namespace = "com.patbaumgartner.android.roomwatchdog"
-    compileSdk = 38
+    compileSdk = 37
+    compileSdkMinor = 1 // Compose BOM 2026.11 requires API 37.1
 
     defaultConfig {
         applicationId = "com.patbaumgartner.android.roomwatchdog"

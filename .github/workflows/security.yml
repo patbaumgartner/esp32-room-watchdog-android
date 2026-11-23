@@ -43,8 +43,8 @@ jobs:
           # up to date, nothing compiles, and the scan fails with "no source code seen".
           cache-disabled: true
 
-      - name: Install Android SDK 38
-        run: yes | ${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-38" "build-tools;38.0.0"
+      - name: Install Android SDK 37.1
+        run: ${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-37.1"
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066  # v4
