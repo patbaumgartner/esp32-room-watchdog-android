@@ -37,7 +37,7 @@ jobs:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Install Android SDK 38
-        run: sdkmanager "platforms;android-38" "build-tools;38.0.0"
+        run: yes | ${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-38" "build-tools;38.0.0"
 
       - name: Validate YAML and shell scripts
         run: |
@@ -82,7 +82,7 @@ jobs:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Install Android SDK 38
-        run: sdkmanager "platforms;android-38" "build-tools;38.0.0"
+        run: yes | ${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-38" "build-tools;38.0.0"
 
       - name: Enable KVM group perms
         run: |
