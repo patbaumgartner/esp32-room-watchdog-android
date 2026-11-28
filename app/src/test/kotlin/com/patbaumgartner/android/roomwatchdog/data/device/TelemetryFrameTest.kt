@@ -43,6 +43,13 @@ class TelemetryFrameTest {
     }
 
     @Test
+    fun `hello with a null audio port falls back to the firmware default`() {
+        val frame = parseTelemetryFrame("""{"type":"hello","audioPort":null}""") as TelemetryFrame.Hello
+
+        assertEquals("an absent announcement uses port 81", DeviceClient.DEFAULT_AUDIO_PORT, frame.audioPort)
+    }
+
+    @Test
     fun `a telemetry frame carries the room reading the UI shows`() {
         val frame = parseTelemetryFrame(
             """

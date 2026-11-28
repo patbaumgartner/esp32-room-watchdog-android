@@ -7,9 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.patbaumgartner.android.roomwatchdog.AppVisibility
 import com.patbaumgartner.android.roomwatchdog.R
 import com.patbaumgartner.android.roomwatchdog.RoomWatchdogApp
+import com.patbaumgartner.android.roomwatchdog.audio.AUDIO_PORT_READINESS_TIMEOUT_MS
+import com.patbaumgartner.android.roomwatchdog.audio.AudioStartCoordinator
+import com.patbaumgartner.android.roomwatchdog.audio.AudioStartDecision
 import com.patbaumgartner.android.roomwatchdog.audio.StreamPhase
 import com.patbaumgartner.android.roomwatchdog.audio.StreamStatus
-import com.patbaumgartner.android.roomwatchdog.data.device.DeviceClient
+import com.patbaumgartner.android.roomwatchdog.audio.normalizeDeviceEndpoint
 import com.patbaumgartner.android.roomwatchdog.data.device.DeviceStatus
 import com.patbaumgartner.android.roomwatchdog.data.device.DeviceException
 import com.patbaumgartner.android.roomwatchdog.data.device.TelemetryFrame
@@ -77,6 +80,15 @@ data class HomeState(
 /** Peak-to-peak reading treated as a full-height bar; picked so ordinary room noise stays subtle. */
 private const val MIC_FULL_SCALE = 6_000f
 
+private data class DeviceIdentity(val endpoint: String?, val apiToken: String) {
+    companion object {
+        fun from(config: WatchdogConfig) = DeviceIdentity(
+            endpoint = normalizeDeviceEndpoint(config.deviceUrl),
+            apiToken = config.apiToken,
+        )
+    }
+}
+
 class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app = application as RoomWatchdogApp
@@ -90,6 +102,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     @Volatile
     private var telemetry: TelemetryStream? = null
+
+    private var portWaitJob: Job? = null
+    private var deviceIdentity = DeviceIdentity.from(settings.current)
+    private val audioStarts = AudioStartCoordinator(settings.current.deviceUrl, ::onAudioEndpointChanged)
 
     private val _state = MutableStateFlow(
         HomeState(
@@ -152,6 +168,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+        viewModelScope.launch {
+            settings.config.collect { config ->
+                val newIdentity = DeviceIdentity.from(config)
+                val oldIdentity = deviceIdentity
+                if (newIdentity != oldIdentity) {
+                    deviceIdentity = newIdentity
+                    audioStarts.resetEndpoint(
+                        newEndpoint = config.deviceUrl,
+                        force = newIdentity.endpoint == oldIdentity.endpoint,
+                    )
+                }
+            }
+        }
         startStatusPolling()
         startTelemetry()
     }
@@ -174,18 +203,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (telemetry == null) {
                     val connected = CompletableDeferred<Boolean>()
+                    val socketGeneration = audioStarts.currentGeneration()
                     val socket = app.container.telemetryStream(
                         baseUrl = config.deviceUrl,
                         apiToken = config.apiToken,
                         onOpen = {
-                            connected.complete(true)
-                            _state.update { it.copy(connected = true, error = null) }
+                            if (audioStarts.isCurrent(socketGeneration)) {
+                                connected.complete(true)
+                                _state.update { it.copy(connected = true, error = null) }
+                            } else {
+                                connected.complete(false)
+                            }
                         },
-                        onFrame = ::onTelemetryFrame,
+                        onFrame = { frame -> onTelemetryFrame(socketGeneration, frame) },
                         onClosed = {
                             connected.complete(false)
-                            telemetry = null
-                            _state.update { current -> current.copy(connected = false) }
+                            if (audioStarts.isCurrent(socketGeneration)) {
+                                telemetry = null
+                                _state.update { current -> current.copy(connected = false) }
+                            }
                         },
                     )
                     telemetry = socket
@@ -194,7 +230,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     // The streaming client deliberately has no read or call timeout, so a server
                     // that accepts the connection and then says nothing would hang this loop.
                     val opened = withTimeoutOrNull(TELEMETRY_HANDSHAKE_MS) { connected.await() }
-                    if (opened != true) closeTelemetry()
+                    if (opened != true && audioStarts.isCurrent(socketGeneration)) closeTelemetry()
                     backoffMs = if (opened == true) {
                         TELEMETRY_MIN_BACKOFF_MS
                     } else {
@@ -211,11 +247,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         telemetry = null
     }
 
-    private fun onTelemetryFrame(frame: TelemetryFrame) {
+    private fun onAudioEndpointChanged() {
+        portWaitJob?.cancel()
+        closeTelemetry()
+        _state.update { it.copy(connected = false) }
+        startTelemetry()
+    }
+
+    private fun onTelemetryFrame(socketGeneration: Long, frame: TelemetryFrame) {
+        if (!audioStarts.isCurrent(socketGeneration)) return
         when (frame) {
             is TelemetryFrame.Hello -> {
-                // The announced audioPort is not used: the app always streams from the
-                // base URL's own port and the reverse proxy routes /audio.pcm by path.
+                audioStarts.onHello(socketGeneration, frame.audioPort, frame.host)?.let(::dispatchAudioStart)
             }
 
             is TelemetryFrame.Telemetry -> _state.update {
@@ -291,11 +334,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val action = app.container.notifier.autoStartFrom(intent) ?: return
         val config = settings.current
         if (config.isConfigured) {
-            stream.start(
-                baseUrl = config.deviceUrl,
-                apiToken = config.apiToken,
-                alsoRecord = action == AlertNotifier.AutoStart.RECORD,
-            )
+            requestAudioStart(alsoRecord = action == AlertNotifier.AutoStart.RECORD)
         }
     }
 
@@ -389,11 +428,44 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startListening() {
-        val config = settings.current
-        if (config.isConfigured) stream.start(config.deviceUrl, config.apiToken)
+        if (settings.current.isConfigured) requestAudioStart(alsoRecord = false)
+    }
+
+    private fun requestAudioStart(alsoRecord: Boolean) {
+        when (val decision = audioStarts.requestStart(alsoRecord)) {
+            is AudioStartDecision.Start -> dispatchAudioStart(decision)
+            is AudioStartDecision.Wait -> if (decision.scheduleTimeout) scheduleAudioStartTimeout(decision)
+            AudioStartDecision.Ignore -> Unit
+        }
+    }
+
+    private fun scheduleAudioStartTimeout(wait: AudioStartDecision.Wait) {
+        portWaitJob = viewModelScope.launch {
+            delay(AUDIO_PORT_READINESS_TIMEOUT_MS)
+            audioStarts.onTimeout(wait)?.let(::dispatchAudioStart)
+        }
+    }
+
+    private fun dispatchAudioStart(start: AudioStartDecision.Start) {
+        viewModelScope.launch {
+            if (!audioStarts.isCurrent(start)) return@launch
+            val config = settings.current
+            if (!config.isConfigured || normalizeDeviceEndpoint(config.deviceUrl) != start.endpoint) {
+                return@launch
+            }
+            stream.start(
+                baseUrl = config.deviceUrl,
+                apiToken = config.apiToken,
+                alsoRecord = start.alsoRecord,
+                audioPort = start.port,
+                helloHost = start.helloHost,
+            )
+        }
     }
 
     fun stopListening() {
+        audioStarts.cancelPendingStart()
+        portWaitJob?.cancel()
         stream.stop()
         viewModelScope.launch {
             delay(250)
@@ -431,6 +503,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        audioStarts.cancelPendingStart()
+        portWaitJob?.cancel()
         stream.stop()
         closeTelemetry()
     }

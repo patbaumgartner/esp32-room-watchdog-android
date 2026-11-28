@@ -30,12 +30,56 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Only queues the merge. Branch protection holds it until the required
-      # checks pass, which is also what lets GITHUB_TOKEN merge PRs that touch
-      # .github/workflows/** -- a direct merge there is rejected.
-      - name: Enable auto-merge for patch and minor updates
-        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
-        run: gh pr merge --auto --rebase "$PR_URL"
+      - name: Verify required check protection
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUIRED_CHECK: Test, lint, and package
+        run: |
+          set -euo pipefail
+
+          rules="$RUNNER_TEMP/main-branch-rules.json"
+          if ! gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/rules/branches/main?per_page=100" > "$rules"; then
+            echo "::error::Unable to read active main branch rules from repository metadata."
+            echo "::error::Check metadata read access and require '$REQUIRED_CHECK' in an active main ruleset."
+            exit 1
+          fi
+
+          if jq -e --arg required "$REQUIRED_CHECK" '
+            any(.[][]?;
+              .type == "required_status_checks"
+              and any(.parameters.required_status_checks[]?; .context == $required)
+            )
+          ' "$rules" > /dev/null; then
+            echo "Verified active main branch rules require '$REQUIRED_CHECK'."
+          else
+            {
+              echo "::error::Auto-merge blocked: active main branch rules do not require '$REQUIRED_CHECK'."
+              echo "::error::Add it to an active main ruleset; classic branch protection alone is not visible."
+            } >&2
+            exit 1
+          fi
+
+      # Only queues the merge. The safeguard above proves active main branch
+      # rules hold it until required checks pass. AUTO_MERGE_TOKEN also permits
+      # workflow changes and triggers the post-merge CI and Snapshot events.
+      - name: Enable auto-merge for patch and minor updates
+        run: |
+          case "$UPDATE_TYPE" in
+            version-update:semver-patch | version-update:semver-minor)
+              if [ -z "$GH_TOKEN" ]; then
+                echo "::error::AUTO_MERGE_TOKEN is missing or empty; auto-merge was not queued."
+                echo "::error::Configure fine-grained Contents, Pull requests, and Workflows write access" \
+                  "so post-merge CI and Snapshot events run."
+                exit 1
+              fi
+              gh pr merge --auto --rebase "$PR_URL"
+              ;;
+            *)
+              echo "Auto-merge skipped for update type '${UPDATE_TYPE:-unknown}'."
+              ;;
+          esac
+        env:
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}

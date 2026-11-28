@@ -17,23 +17,27 @@ misleads rather than merely ages.
 
 Gradle needs the SDK location from `ANDROID_HOME` or `sdk.dir` in `local.properties`, or it
 stops with `SDK location not found`. Builds on JDK 27, same as CI (bytecode
-target stays 17).
+target stays 17), with Android SDK Platform 37.1 (`compileSdkMinor = 1`; `targetSdk` stays 37).
+Validation also needs Bash, `jq`, `yamllint`, ShellCheck and standard Unix utilities
+(`awk`, `sed`, `grep`, `diff` and coreutils). `curl` is needed only for a live firmware probe;
+its fixtures use a mock.
 
 ```bash
 export ANDROID_HOME="$HOME/Android/Sdk"
-./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
+./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
+scripts/check-ci.sh
+scripts/check-audio-contract.sh
+scripts/test-dependabot-preflight.sh
+scripts/test-firmware-probe.sh
 yamllint .
 find . -name '*.sh' -not -path './*/build/*' -exec shellcheck {} +
 ```
 
 That is the full CI gate — run it before claiming a change is done. `scripts/deploy-device.sh`
 and `scripts/deploy-emulator.sh` build, install and launch. Instrumented UI tests also run in
-CI (`connectedDebugAndroidTest` on an emulator job); locally they need a running emulator, and
-`assembleDebugAndroidTest` at least proves they compile and package:
-
-```bash
-./gradlew assembleDebugAndroidTest
-```
+CI (`connectedDebugAndroidTest` on an emulator job); locally they need a running emulator. The
+included `assembleDebugAndroidTest` proves they compile and package, while `bundleRelease` checks
+the stable AAB artifact.
 
 ## Build traps
 
@@ -57,7 +61,7 @@ building unsigned release APKs. Never commit keystore material.
 
 ## Architecture
 
-- Manual DI: one [AppContainer](app/src/main/kotlin/com/patbaumgartner/roomwatchdog/di/AppContainer.kt)
+- Manual DI: one [AppContainer](app/src/main/kotlin/com/patbaumgartner/android/roomwatchdog/di/AppContainer.kt)
   built in `RoomWatchdogApp.onCreate()`, reached via `(application as RoomWatchdogApp).container`.
   No Hilt, no Koin. No Room, no DataStore — `SharedPreferences` plus kotlinx.serialization JSON.
 - Three OkHttp clients from one pool: `apiHttpClient` (bounded timeouts), `streamingHttpClient`
@@ -147,9 +151,16 @@ than that repo's docs. Run `/firmware-contract-check` before changing anything t
 device — it probes the running hardware and diffs it against what the app assumes.
 
 Constraints that shape the code: the device accepts one audio client and one telemetry client,
-and the `/ws` hello frame announces the audio port — follow it rather than hardcoding, keeping
-81 only as the fallback. Audio is served on 81 alone; port 80 answers 404 for `/audio.pcm`, and
-the two firmware versions that did serve it there are ones this app cannot stream from anyway.
+and the `/ws` hello frame announces the audio port and device host. HTTPS and every explicitly
+configured HTTP port, including `:80`, preserve the configured proxy endpoint. A no-port HTTP URL
+is direct by default for migration compatibility: IP literals use the announced/default port,
+while a non-blank mismatching hostname in Hello identifies a standard-port proxy and keeps port
+80. Without contrary Hello identity, the bounded legacy fallback is 81. Explicit `:80` is therefore
+the deterministic override for a no-port proxy with no Hello or indistinguishable host identity.
+Cold starts wait up to three seconds for the current endpoint's first valid Hello; stopping or an
+endpoint/token change cancels that wait and late frames are ignored. Audio is served on 81 alone;
+port 80 answers 404 for `/audio.pcm`, and the two firmware versions that did serve it there are
+ones this app cannot stream from anyway.
 Polling `/status` on 80 during a session is safe on current firmware — measured at 99.7 % of
 nominal throughput with zero dropped samples across eight polls.
 

@@ -4,6 +4,13 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 ## Unreleased
 
+### Fixed
+
+- Direct no-port HTTP audio follows the valid port announced by the current endpoint, with a
+  bounded port-81 fallback for legacy devices; HTTPS and explicit HTTP ports (including the `:80`
+  proxy override) keep their configured endpoint, and stale telemetry cannot leak ports across
+  device configuration changes
+
 ## [0.2.0] - 2026-11-16
 
 ### Added

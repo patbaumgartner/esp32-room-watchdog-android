@@ -59,8 +59,10 @@ Options:
 
 ## Consequences
 
-- Users can download and install the APK directly from the Releases page;
-  releases and snapshots share one key, so they update in place.
+- Users can download and install the APK directly from the Releases page. The
+  shared key permits stable-to-Snapshot updates, but Android blocks the
+  Snapshot-to-stable downgrade. Channel switching is manual-only in myApps with
+  a data-loss warning, not automatic uninstall or data migration.
 - The release key is a single point of failure: the offline backup must be
   kept safe (password manager / HSM). Losing it means future updates cannot
   be signed with the same key and users would have to reinstall. Key

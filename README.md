@@ -44,7 +44,10 @@ page:
 - **Snapshot** (prerelease, rebuilt on every push to `main`): the latest
   signed APK for testing.
 
-Both use the same release key, so they install over each other as updates.
+Both use the same release key. Stable releases can update to Snapshot, but Android
+blocks installing stable directly over Snapshot as a downgrade. Switching channels
+is manual-only in myApps, which shows a data-loss warning and does not
+automatically uninstall or migrate app data. Back up recordings before switching.
 Verify a download against `SHA256SUMS` before installing. Sideloading on
 Android 8+ requires allowing "Install unknown apps" for the app you open the
 APK with.
@@ -53,7 +56,7 @@ APK with.
 
 - Android 8.0 (API 26) or newer
 - JDK 27
-- Android SDK 37 with the matching build tools
+- Android SDK Platform 37.1 (`compileSdkMinor = 1`; `targetSdk` remains 37) with matching build tools
 - An ESP32 running the companion firmware on a local network or VPN
 - A Gotify server reachable over HTTPS and a Gotify **client** token (`gtfyc...`)
 
@@ -127,6 +130,10 @@ never production secrets. Release builds always leave the fields empty.
 - ESP32 HTTPS uses Android's system certificate authorities and standard
   hostname verification. Self-signed, expired, or hostname-mismatched
   certificates are rejected.
+- HTTPS and explicitly configured HTTP ports preserve proxy routing. No-port
+  HTTP defaults to direct audio on the announced port (81 fallback); configure
+  explicit `:80` for a standard-port cleartext proxy. A mismatching Hello host
+  also keeps a no-port hostname proxy on port 80.
 - Tokens are encrypted with an Android Keystore AES-GCM key before storage.
 - Recordings remain in app-private storage. They are shared through a temporary
   read-only content URI only when the user chooses Share or Play.
@@ -137,10 +144,16 @@ never production secrets. Release builds always leave the fields empty.
 
 ## Validation
 
-Run the same primary gates used by CI:
+Run the same primary gates used by CI. Besides JDK 27 and SDK Platform 37.1,
+validation needs Bash, `jq`, `yamllint`, ShellCheck and standard Unix utilities
+(`awk`, `sed`, `grep`, `diff` and coreutils); only the live probe needs `curl`.
 
 ```bash
-./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
+./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
+scripts/check-ci.sh
+scripts/check-audio-contract.sh
+scripts/test-dependabot-preflight.sh
+scripts/test-firmware-probe.sh
 yamllint .
 find . -name '*.sh' -not -path './*/build/*' -exec shellcheck {} +
 ```
