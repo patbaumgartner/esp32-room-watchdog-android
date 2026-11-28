@@ -31,7 +31,10 @@ bash .github/skills/firmware-contract-check/scripts/probe.sh
 
 [probe.sh](./scripts/probe.sh) reads `watchdog.deviceUrl` / `watchdog.apiToken` from
 `local.properties` (override with `DEVICE_URL` / `API_TOKEN`), prints the live endpoint
-behaviour next to what the app hardcodes, and never echoes the token.
+behaviour next to what the app hardcodes, and never echoes the token. Status and WebSocket
+requests preserve the configured authority. HTTPS and explicit HTTP ports probe only that
+configured audio endpoint; no-port HTTP probes both the direct port-81 fallback and configured
+port 80. Bracketed IPv6 authorities remain bracketed when a port is added.
 
 Reading the results:
 
@@ -74,9 +77,11 @@ A recent commit touching ports or the socket is the usual reason the app and dev
 Check each of these:
 
 - **Audio port and path** — `DeviceClient.DEFAULT_AUDIO_PORT`, `deviceAudioUrl()` in
-  `EndpointPolicy`, and the `hello` frame's `audioPort`. The socket announces the port; follow it
-  rather than hardcoding, and keep the constant as the fallback for a device that never sends one.
-  A port outside 1-65535 is treated as not sent at all.
+  `EndpointPolicy`, and the `hello` frame's `audioPort` / `host`. HTTPS and every explicit HTTP
+  port, including `:80`, preserve the configured proxy endpoint. No-port HTTP defaults to direct
+  for migration compatibility, using the announced/default port unless a non-blank mismatching
+  Hello host identifies a proxy. The bounded legacy fallback is 81; explicit `:80` is the
+  deterministic standard-port proxy override. A port outside 1-65535 is treated as not sent at all.
 - **Hello frame fields** — `TelemetryFrame.Hello` against `sendHello()` in `ws.cpp`.
 - **Telemetry and status fields** — `DeviceStatus` against `telemetryJson()` in `ws.cpp` and the
   `/status` handler in `api.cpp`.

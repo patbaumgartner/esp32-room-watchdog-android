@@ -93,13 +93,20 @@ class DeviceClient(private val http: OkHttpClient) {
         else -> DeviceException(DeviceException.Kind.Unknown, error)
     }
 
-    /** The stream is always requested on the base URL's own port (443/80); the proxy routes by path. */
-    fun audioRequest(baseUrl: String, apiToken: String): Request =
-        Request.Builder()
-            .url(deviceAudioUrl(baseUrl))
+    /** Direct LAN HTTP follows the announced port; EndpointPolicy preserves HTTPS and proxy ports. */
+    fun audioRequest(
+        baseUrl: String,
+        apiToken: String,
+        audioPort: Int? = DEFAULT_AUDIO_PORT,
+        helloHost: String? = null,
+    ): Request {
+        val validAudioPort = audioPort?.takeIf { it in 1..65535 } ?: DEFAULT_AUDIO_PORT
+        return Request.Builder()
+            .url(deviceAudioUrl(baseUrl, validAudioPort, helloHost))
             .header("Authorization", "Bearer $apiToken")
             .get()
             .build()
+    }
 
     /** Handshake for the live telemetry socket; okhttp upgrades the http(s) URL itself. */
     fun telemetryRequest(baseUrl: String, apiToken: String): Request = Request.Builder()

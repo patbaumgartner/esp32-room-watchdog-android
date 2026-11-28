@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build:
-    name: Test, lint, and package
+    name: Build and unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -37,16 +37,24 @@ jobs:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Install Android SDK 37.1
-        run: ${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-37.1"
+        run: >-
+          "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          "platforms;android-37.1"
 
-      - name: Validate YAML and shell scripts
+      - name: Validate workflows, YAML and shell scripts
         run: |
+          scripts/check-ci.sh
+          scripts/check-audio-contract.sh
+          scripts/test-dependabot-preflight.sh
+          scripts/test-firmware-probe.sh
           pipx install yamllint
           yamllint .
           find . -name '*.sh' -not -path './*/build/*' -exec shellcheck {} +
 
       - name: Test, lint, and package
-        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug assembleRelease
+        run: >-
+          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug assembleRelease
+          assembleDebugAndroidTest bundleRelease
 
       - name: Upload failure reports
         if: failure()
@@ -82,7 +90,9 @@ jobs:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Install Android SDK 37.1
-        run: ${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "platforms;android-37.1"
+        run: >-
+          "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          "platforms;android-37.1"
 
       - name: Enable KVM group perms
         run: |
@@ -109,3 +119,17 @@ jobs:
             app/build/outputs/androidTest-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  verify:
+    name: Test, lint, and package
+    if: ${{ always() }}
+    needs: [build, instrumented]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require build and instrumented success
+        run: |
+          echo "Build result: ${{ needs.build.result }}"
+          echo "Instrumented result: ${{ needs.instrumented.result }}"
+          test "${{ needs.build.result }}" = "success"
+          test "${{ needs.instrumented.result }}" = "success"

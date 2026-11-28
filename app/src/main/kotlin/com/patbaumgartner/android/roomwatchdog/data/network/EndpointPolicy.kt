@@ -16,15 +16,38 @@ internal fun deviceBaseUrl(value: String): HttpUrl {
     throw EndpointValidationException(EndpointIssue.Insecure)
 }
 
+internal data class DeviceEndpoint(val url: HttpUrl, val explicitPort: Boolean) {
+    val isIpLiteral: Boolean get() = url.host.asIpLiteral() != null
+
+    fun normalized(): String {
+        val host = if (':' in url.host) "[${url.host}]" else url.host
+        val port = if (explicitPort) ":${url.port}" else ""
+        return "${url.scheme}://$host$port${url.encodedPath}"
+    }
+}
+
+internal fun deviceEndpoint(value: String): DeviceEndpoint =
+    DeviceEndpoint(deviceBaseUrl(value), value.hasExplicitPort())
+
 /**
- * Audio rides the same base URL as the REST API and the WebSocket: the app only ever
- * talks to the scheme's default port (443 for https, 80 for http). The device's own
- * audio server on port 81 is a LAN detail - behind a reverse proxy, Traefik routes
- * /audio.pcm to the device's port 81 by path, so the announced audioPort is not
- * applied to the URL.
+ * HTTPS and every explicitly configured HTTP port (including :80) stay on the configured proxy.
+ * A no-port HTTP URL is direct by default for migration compatibility: a valid announced/default
+ * audio port is applied immediately for IP literals, and for hostnames unless a non-blank Hello
+ * host identifies a different device. The explicit :80 override is deterministic for proxies whose
+ * Hello is absent or whose host is indistinguishable from the device.
  */
-internal fun deviceAudioUrl(value: String): HttpUrl =
-    deviceBaseUrl(value).newBuilder().addPathSegment("audio.pcm").build()
+internal fun deviceAudioUrl(value: String, audioPort: Int?, helloHost: String? = null): HttpUrl {
+    val endpoint = deviceEndpoint(value)
+    val base = endpoint.url
+    val builder = base.newBuilder().addPathSegment("audio.pcm")
+    val directDevice = endpoint.isIpLiteral || !base.host.isDifferentHelloDevice(helloHost)
+    if (base.scheme == "http" && !endpoint.explicitPort && directDevice &&
+        audioPort != null && audioPort in 1..65535
+    ) {
+        builder.port(audioPort)
+    }
+    return builder.build()
+}
 
 internal fun deviceSocketUrl(value: String): HttpUrl =
     deviceBaseUrl(value).newBuilder().addPathSegment("ws").build()
@@ -42,6 +65,26 @@ private fun parseBaseUrl(value: String): HttpUrl {
         throw EndpointValidationException(EndpointIssue.Invalid)
     }
     return url
+}
+
+private fun String.hasExplicitPort(): Boolean {
+    val authority = trim().substringAfter("://").substringBefore('/')
+    if (authority.startsWith("[")) return authority.substringAfter("]", "").startsWith(":")
+    return authority.substringAfterLast('@').contains(':')
+}
+
+private fun String.isDifferentHelloDevice(helloHost: String?): Boolean {
+    val announced = helloHost?.trim()?.trimEnd('.')?.lowercase().orEmpty()
+    if (announced.isEmpty()) return false
+    val configured = trimEnd('.').lowercase()
+    if (configured == announced) return false
+
+    val configuredLabel = configured.substringBefore('.')
+    val announcedLabel = announced.substringBefore('.')
+    val localAlias = configuredLabel == announcedLabel &&
+        (configured == configuredLabel || announced == announcedLabel) &&
+        announced.isPrivateNetworkName()
+    return !localAlias
 }
 
 private fun String.isPrivateNetworkHost(): Boolean {

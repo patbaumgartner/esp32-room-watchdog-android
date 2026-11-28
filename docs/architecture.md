@@ -52,10 +52,19 @@ ESP32 /audio.pcm -> PcmStreamSession -> NoiseFilter -> AudioTrack
 Everything the device answers on its API port - `/status`, `/calibrate` and the
 `/ws` telemetry socket - is one authenticated async server; `/audio.pcm` has a
 second, synchronous server on its own port because an async chunked response
-cannot sustain 48 kHz. The socket's hello frame announces that port. Telemetry
-is the live source while the socket is up; the REST poll is only a fallback, and
-it pauses during a listening session so firmware that still shares one port
-cannot have its stream cut short.
+cannot sustain 48 kHz. The socket's hello frame announces that port and the
+device host. HTTPS and every explicitly configured HTTP port (including `:80`)
+preserve the configured proxy endpoint. No-port HTTP is direct by default for
+migration compatibility: IP literals use the announced/default port, while a
+non-blank mismatching Hello hostname identifies a standard-port proxy and keeps
+port 80. Otherwise the bounded legacy fallback is 81; explicit `:80` is the
+deterministic proxy override when Hello is absent or identity is ambiguous.
+Cold starts wait up to three seconds for the current endpoint's first valid
+Hello. Stopping cancels a pending start, and endpoint or token changes reset the
+cached port, close telemetry, and reject late frames from the previous socket.
+Telemetry is the live source while the socket is up; the REST poll is only a
+fallback, and it pauses during a listening session so firmware that still shares
+one port cannot have its stream cut short.
 
 Unknown Gotify messages are ignored after advancing the synchronization cursor.
 This prevents unrelated applications on the same Gotify account from appearing
@@ -77,8 +86,10 @@ as room-presence alerts.
 
 ## Tests
 
-JVM unit tests cover endpoint trust rules, the `/ws` frame contract, Gotify event
-parsing, and the audio chain (noise learning, suppression state). Android lint
+JVM unit tests cover endpoint trust rules, scheme-aware audio request ports, the
+`/ws` frame contract, Gotify event parsing, and the audio chain (noise learning,
+suppression state). A repository static check also pins the ViewModel-to-session
+port wiring, including notification actions. Android lint
 validates resources, manifest declarations, API levels, and Compose usage. Both
 debug and minified release variants are assembled in CI to exercise resource
 shrinking and R8.

@@ -8,7 +8,7 @@ name: Release
 # Both are signed with the release key held in repository secrets
 # (SR_KEYSTORE_BASE64, SR_KEYSTORE_PASSWORD, SR_KEY_ALIAS, SR_KEY_PASSWORD;
 # see CONTRIBUTING.md "Releases"). Snapshots and releases share the same
-# signing key, so users can update between them without uninstalling.
+# signing key. Stable -> Snapshot is an upgrade; Snapshot -> stable is a blocked downgrade.
 
 on:
   push:
@@ -48,6 +48,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c  # v6.4.1
 
+      - name: Install Android SDK 37.1
+        run: >-
+          "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          "platforms;android-37.1"
+
       - name: Decode release keystore
         env:
           SR_KEYSTORE_BASE64: ${{ secrets.SR_KEYSTORE_BASE64 }}
@@ -72,7 +77,7 @@ jobs:
 
       - name: Verify APK signature
         run: |
-          apksigner="$(ls -1 "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          apksigner="$(find "$ANDROID_HOME"/build-tools -type f -name apksigner -print | sort -V | tail -1)"
           "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk
 
       - name: Stage artifacts
@@ -89,7 +94,9 @@ jobs:
           {
             echo "Latest signed build of ${GITHUB_REF_NAME} (commit ${GITHUB_SHA})."
             echo
-            echo "Installs over official releases and vice versa (same signing key)."
+            echo "Stable releases update to Snapshot with the same signing key."
+            echo "Snapshot to stable is a blocked downgrade; switching channels is manual in myApps."
+            echo "myApps shows a data-loss warning and does not automatically uninstall; back up recordings first."
             echo "Verify the download against SHA256SUMS before installing."
           } > "$notes"
           # Recreate the tag too so source archives match the uploaded binaries.
@@ -124,6 +131,11 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c  # v6.4.1
+
+      - name: Install Android SDK 37.1
+        run: >-
+          "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          "platforms;android-37.1"
 
       - name: Decode release keystore
         env:
@@ -160,7 +172,7 @@ jobs:
       - name: Verify APK signature and capture certificate fingerprint
         id: cert
         run: |
-          apksigner="$(ls -1 "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          apksigner="$(find "$ANDROID_HOME"/build-tools -type f -name apksigner -print | sort -V | tail -1)"
           "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk
           "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk \
             | awk '/SHA-256 digest/ {print $NF; exit}' > cert-sha256.txt
@@ -192,6 +204,9 @@ jobs:
             echo "2. Verify the download: sha256sum -c SHA256SUMS"
             echo "3. Open the APK on your device and allow \"Install unknown apps\" for the app you open it with."
             echo "4. Install. Later releases install as an in-place update (same signing key)."
+            echo
+            echo "Snapshot to stable is a blocked downgrade. Switching channels is manual-only in myApps,"
+            echo "which shows a data-loss warning and does not automatically uninstall. Back up recordings first."
             echo
             echo "Signer certificate SHA-256: $CERT_SHA256"
             echo

@@ -5,7 +5,8 @@ tests are easiest to review.
 
 ## Set up a development environment
 
-Install JDK 27 and Android SDK 37, then clone the repository. Android Studio can
+Install JDK 27 and Android SDK Platform 37.1 (`compileSdkMinor = 1`; `targetSdk` remains 37),
+then clone the repository. Android Studio can
 import the root directory directly; command-line builds use the checked-in
 Gradle wrapper and need `ANDROID_HOME` set, or an `sdk.dir` line in
 `local.properties`.
@@ -63,8 +64,16 @@ or create a git-ignored `keystore.properties` with `storeFile`,
 
 ## Validate
 
+Validation needs Bash, `jq`, `yamllint`, ShellCheck and standard Unix utilities
+(`awk`, `sed`, `grep`, `diff` and coreutils). `curl` is needed only for a live
+firmware probe; its fixtures use a mock.
+
 ```bash
-./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
+./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
+scripts/check-ci.sh
+scripts/check-audio-contract.sh
+scripts/test-dependabot-preflight.sh
+scripts/test-firmware-probe.sh
 yamllint .
 find . -name '*.sh' -not -path './*/build/*' -exec shellcheck {} +
 git diff --check
@@ -74,6 +83,34 @@ Android lint intentionally reports two non-failing warnings: the app permits
 constrained LAN cleartext for the ESP32, and adaptive launcher icons must remain
 in `mipmap-anydpi-v26` for Android resource packaging. Do not suppress either
 warning globally.
+
+## Hosted requirements
+
+Pull requests require the **`Test, lint, and package`** check. This is the final
+`verify` job in `ci.yml`, not either test job alone. It runs after both
+**Build and unit tests** and **Instrumented tests (emulator)** and explicitly
+asserts that both succeeded, including when either was cancelled or failed.
+Keep the job name, its `always()` condition, both dependencies, and both shell
+assertions intact; `scripts/check-ci.sh` statically guards this invariant. The
+instrumented job must continue to run `connectedDebugAndroidTest` and upload its
+failure diagnostics.
+
+Dependabot auto-merge is allowed only after the metadata-readable, paginated
+`rules/branches/main` API proves that active `main` branch rules require that
+exact aggregate check context. Classic branch protection alone is not visible to
+`GITHUB_TOKEN` and does not satisfy the preflight; the workflow does not call the
+classic protection or detailed-ruleset APIs. Missing, inaccessible, or incomplete
+rules fail closed with remediation output instead of queuing a merge.
+`scripts/test-dependabot-preflight.sh` exercises the real inline predicate,
+pagination, exact type/context matching, and API-failure path. The
+`pull_request_target` workflow must never check out or execute pull-request code.
+
+Fetch-metadata and the protection preflight use `GITHUB_TOKEN`; only the actual
+merge step uses `AUTO_MERGE_TOKEN`. Configure that fine-grained token with
+**Contents: write**, **Pull requests: write**, and **Workflows: write** so it can
+merge workflow changes and trigger post-merge CI and Snapshot events. A
+missing or empty token stops an eligible merge with an actionable error without
+printing the token value; skipped major/unknown updates do not require it.
 
 ## Pull requests
 

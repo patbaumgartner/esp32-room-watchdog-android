@@ -84,6 +84,8 @@ class PcmStreamSession(
         baseUrl: String,
         apiToken: String,
         alsoRecord: Boolean = false,
+        audioPort: Int = DeviceClient.DEFAULT_AUDIO_PORT,
+        helloHost: String? = null,
     ) {
         if (isActive) {
             if (alsoRecord) startRecording()
@@ -91,7 +93,7 @@ class PcmStreamSession(
         }
         recordingRequested = alsoRecord
         _status.value = StreamStatus(phase = StreamPhase.Connecting, noiseFiltered = noiseFilterEnabled)
-        job = scope.launch { stream(baseUrl, apiToken) }
+        job = scope.launch { stream(baseUrl, apiToken, audioPort, helloHost) }
     }
 
     fun stop() {
@@ -129,13 +131,13 @@ class PcmStreamSession(
         }
     }
 
-    private suspend fun stream(baseUrl: String, apiToken: String) {
+    private suspend fun stream(baseUrl: String, apiToken: String, audioPort: Int, helloHost: String?) {
         var track: AudioTrack? = null
         var error: StreamError? = null
         var recordingStartedAt = 0L
 
         try {
-            val response = http.newCall(deviceClient.audioRequest(baseUrl, apiToken))
+            val response = http.newCall(deviceClient.audioRequest(baseUrl, apiToken, audioPort, helloHost))
                 .also { call = it }
                 .execute()
 
